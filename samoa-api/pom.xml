@@ -101,6 +101,12 @@
       <version>${hadoop.version}</version>
       <scope>test</scope>
     </dependency>
+
+    <dependency>
+      <groupId>org.jblas</groupId>
+      <artifactId>jblas</artifactId>
+      <version>${jblas.version}</version>
+    </dependency>
   </dependencies>
 
   <build>
