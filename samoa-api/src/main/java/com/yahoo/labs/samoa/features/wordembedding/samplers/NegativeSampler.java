@@ -134,7 +134,6 @@ public class NegativeSampler<T> implements Sampler<T> {
     }
 
     // FIXME need a more fine and intelligent update (any library for computing distribution like this?)
-    // FIXME asynchronous with FutureTask
     @Override
     public synchronized void update() {
         int[] tempTable = new int[tableSize]; //table (= list of words) of noise distribution for negative sampling

@@ -59,6 +59,7 @@ public class LearnerProcessor<T> implements Processor {
     private long iterations;
     //FIXME substitute with guava cache
     private ConcurrentHashMap<Long, LocalData<T>> tempData = new ConcurrentHashMap<Long, LocalData<T>>();
+    private HashMap<Long, List<RowResponse>> waitingItems = new HashMap<>();
     private int lastEventCount = 0;
     private int samplerCount;
     private boolean firstDataReceived = false;
@@ -92,6 +93,7 @@ public class LearnerProcessor<T> implements Processor {
         pollEvents();
         if (event instanceof IndexUpdateEvent) {
             if (event.isLastEvent()) {
+                logger.info("LAST INDEXER");
                 return true;
             }
             IndexUpdateEvent<T> update = (IndexUpdateEvent<T>) event;
@@ -113,6 +115,19 @@ public class LearnerProcessor<T> implements Processor {
         }
         if (event.isLastEvent()) {
             lastEventCount++;
+            //FIXME it is not guaranteed that all the model updates after row updates will be sent!
+            if (lastEventCount >= samplerCount && !lastEventSent) {
+                //FIXME wait indefinitely! here we should do a join on the learning threads
+                //FIXME  commented because it does not work on storm, it won't execute the last learning iterations
+                //while (!tempData.isEmpty()) {};
+                logger.info(String.format("LearnerProcessor-%d: finished after %d iterations with %d items",
+                        id, iterations, learner.size()));
+//            executor.shutdown();
+//            while (!executor.isTerminated()) {};
+                modelStream.put(new ModelUpdateEvent(null, null, true));
+                lastEventSent = true;
+                return true;
+            }
         } else if (event instanceof DataIDEvent) {
             if (!firstDataReceived) {
                 firstDataReceived = true;
@@ -127,6 +142,19 @@ public class LearnerProcessor<T> implements Processor {
             LocalData<T> localData = new LocalData<T>((T[]) new Object[dataIDEvent.getDataSize()]);
             //logger.info(id + ": new data: "+dataID+", length: "+localData.data.length + ", data size:" + tempData.size());
             tempData.put(dataID, localData);
+            if (waitingItems.containsKey(dataID)) {
+                for (RowResponse<T> response: waitingItems.get(dataID)) {
+                    T item = (T) response.getItem();
+                    int pos = response.getPosition();
+                    DoubleMatrix row = response.getRow();
+                    DoubleMatrix contextRow = response.getContextRow();
+                    LocalData<T> currData = tempData.get(dataID);
+                    if (currData.setExternalItem(pos, item, row, contextRow)) {
+                        asyncLearn(dataID, currData);
+                    }
+                }
+                waitingItems.remove(dataID);
+            }
         } else if (event instanceof ItemInDataEvent) {
             ItemInDataEvent<T> newItemEvent = (ItemInDataEvent<T>) event;
             long dataID = newItemEvent.getDataID();
@@ -149,28 +177,21 @@ public class LearnerProcessor<T> implements Processor {
         } else if (event instanceof RowResponse) {
             RowResponse response = (RowResponse) event;
             Long dataID = Long.parseLong(response.getKey());
-            T item = (T) response.getItem();
-            int pos = response.getPosition();
-            DoubleMatrix row = response.getRow();
-            DoubleMatrix contextRow = response.getContextRow();
             if (tempData.containsKey(dataID)) {
+                T item = (T) response.getItem();
+                int pos = response.getPosition();
+                DoubleMatrix row = response.getRow();
+                DoubleMatrix contextRow = response.getContextRow();
                 LocalData<T> currData = tempData.get(dataID);
                 if (currData.setExternalItem(pos, item, row, contextRow)) {
-//                        + " " + currData.externalRows.keySet() + "\n" + Arrays.toString(currData.data));
-                    long startTime = System.nanoTime();
                     asyncLearn(dataID, currData);
-                    long endTime = System.nanoTime();
-//                    logger.info(id + ": learn " + dataID + ", data size " + tempData.size() + ", external rows " +
-//                            currData.externalRows.size());
-//                    if (tempData.size() > 10) {
-//                        logger.info(id + ": learn " + dataID + ", data size " + tempData.size() + ", external rows " +
-//                                currData.externalRows.size() + ", time " + (endTime - startTime) / 1000000);
-//                    }
-                    //logger.info("TIME: " + (endTime - startTime) / 1000000 + " last events: " + lastEventCount);
                 }
             } else {
-                //FIXME this should never happen!
-                logger.error(this.getClass().getSimpleName()+"-{}: the item row for \"" + item +
+                if (!waitingItems.containsKey(dataID)) {
+                    waitingItems.put(dataID, new ArrayList<RowResponse>());
+                }
+                waitingItems.get(dataID).add(response);
+                logger.debug(this.getClass().getSimpleName() + "-{}: the item row for \"" + response.getItem() +
                         "\" has reached this learner before data " + dataID + " initialization.", id);
             }
         } else if (event instanceof RowUpdate) {
@@ -192,18 +213,6 @@ public class LearnerProcessor<T> implements Processor {
             }
 //            if(item.toString().equals("and")) logger.info("ROW "+learner.getRow(item));
             modelStream.put(new ModelUpdateEvent(item, learner.getRow(item), false));
-        }
-        //FIXME it is not guaranteed that all the model updates after row updates will be sent!
-        if (lastEventCount >= samplerCount && !lastEventSent) {
-            //FIXME wait indefinitely! here we should do a join on the learning threads
-            //FIXME  commented because it does not work on storm, it won't execute the last learning iterations
-            //while (!tempData.isEmpty()) {};
-            logger.info(String.format("LearnerProcessor-%d: finished after %d iterations with %d items",
-                    id, iterations, learner.size()));
-//            executor.shutdown();
-//            while (!executor.isTerminated()) {};
-            modelStream.put(new ModelUpdateEvent(null, null, true));
-            lastEventSent = true;
         }
         return true;
     }
@@ -335,6 +344,10 @@ public class LearnerProcessor<T> implements Processor {
         l.tempData = new ConcurrentHashMap();
         for (Object key: p.tempData.keySet()) {
             l.tempData.put(key, ((LocalData<T>) p.tempData.get(key)).copy());
+        }
+        l.waitingItems = new HashMap();
+        for (Object key: p.waitingItems.keySet()) {
+            l.waitingItems.put(key, new ArrayList<RowResponse>((List) p.waitingItems.get(key)));
         }
         l.synchroEvents = new ConcurrentLinkedQueue();
         Iterator iter = p.synchroEvents.iterator();
