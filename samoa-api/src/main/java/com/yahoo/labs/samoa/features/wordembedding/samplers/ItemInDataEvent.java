@@ -27,49 +27,49 @@ import com.yahoo.labs.samoa.core.ContentEvent;
  */
 public class ItemInDataEvent<T> implements ContentEvent {
 
-    private static final long serialVersionUID = 278023268642657276L;
-    private T item;
-    private long dataID;
-    private int position;
-    private String key;
-    private boolean isLastEvent;
+  private static final long serialVersionUID = 278023268642657276L;
+  private T item;
+  private long dataID;
+  private int position;
+  private String key;
+  private boolean isLastEvent;
 
-    public ItemInDataEvent() {
-    }
+  public ItemInDataEvent() {
+  }
 
-    public ItemInDataEvent(T item, long dataID, int position, boolean isLastEvent, String key) {
-        this.item = item;
-        this.dataID = dataID;
-        this.position = position;
-        this.isLastEvent = isLastEvent;
-        this.key = key;
-    }
+  public ItemInDataEvent(T item, long dataID, int position, boolean isLastEvent, String key) {
+    this.item = item;
+    this.dataID = dataID;
+    this.position = position;
+    this.isLastEvent = isLastEvent;
+    this.key = key;
+  }
 
-    @Override
-    public String getKey() {
-        return key;
-    }
+  @Override
+  public String getKey() {
+    return key;
+  }
 
-    @Override
-    public void setKey(String key) {
+  @Override
+  public void setKey(String key) {
 
-        this.key = key;
-    }
+    this.key = key;
+  }
 
-    @Override
-    public boolean isLastEvent() {
-        return isLastEvent;
-    }
+  @Override
+  public boolean isLastEvent() {
+    return isLastEvent;
+  }
 
-    public T getItem() {
-        return item;
-    }
+  public T getItem() {
+    return item;
+  }
 
-    public long getDataID() {
-        return dataID;
-    }
+  public long getDataID() {
+    return dataID;
+  }
 
-    public int getPosition() {
-        return position;
-    }
+  public int getPosition() {
+    return position;
+  }
 }

@@ -30,22 +30,24 @@ import java.util.Map;
  */
 public interface Counter<T> extends Serializable {
 
-    int size();
-    /**
-     * The value is changed only if it is grater then the current count
-     * @param key
-     * @param value
-     * @return
-     */
-    long put(T key, Long value);
+  int size();
 
-    long remove(T word);
+  /**
+   * The value is changed only if it is grater then the current count
+   *
+   * @param key
+   * @param value
+   * @return
+   */
+  long put(T key, Long value);
 
-    long get(T word);
+  long remove(T word);
 
-    boolean containsKey(T word);
+  long get(T word);
 
-    Iterator<Map.Entry<T,Long>> iterator();
+  boolean containsKey(T word);
+
+  Iterator<Map.Entry<T, Long>> iterator();
 }
 //public interface Counter<T> extends Map<T, Long> {
 //}

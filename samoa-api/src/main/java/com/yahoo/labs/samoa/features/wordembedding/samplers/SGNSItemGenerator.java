@@ -24,6 +24,7 @@ import com.yahoo.labs.samoa.core.Processor;
 import org.jblas.util.Random;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -32,54 +33,55 @@ import java.util.List;
  */
 public class SGNSItemGenerator<T> extends SamplerProcessor<T> {
 
-    private static final Logger logger = LoggerFactory.getLogger(SGNSItemGenerator.class);
-    private static final long serialVersionUID = -4509340061994117991L;
-    private short window;
+  private static final Logger logger = LoggerFactory.getLogger(SGNSItemGenerator.class);
+  private static final long serialVersionUID = -4509340061994117991L;
+  private short window;
 
-    public SGNSItemGenerator(Sampler sampler, short window) {
-        super(sampler);
-        this.window = window;
-    }
+  public SGNSItemGenerator(Sampler sampler, short window) {
+    super(sampler);
+    this.window = window;
+  }
 
-    /**
-     * Send the training samples from a sentence
-     * @param data
-     */
-    protected void generateTraining(List<T> data) {
-        // Iterate through data items. For each item in context (contextItem) predict an item which is in the
-        // range of |window - reduced_window|
-        for (int pos = 0; pos < data.size(); pos++) {
-            T contextItem = data.get(pos);
-            // Generate a random window for each item
-            int reduced_window = Random.nextInt(window); // `b` in the original word2vec code
-            // now go over all items from the (reduced) window, predicting each one in turn
-            int start = Math.max(0, pos - window + reduced_window);
-            int end = pos + window + 1 - reduced_window;
-            //TODO shuffle sentence2 so that word pairs are not ordered by item: probably less collisions in the learning
-            List<T> sentence2 = data.subList(start, end > data.size() ? data.size() : end);
-            // Fixed a context item, iterate through items which have it in their context
-            for (int pos2 = 0; pos2 < sentence2.size(); pos2++) {
-                T item = sentence2.get(pos2);
-                // don't train on OOV items and on the `item` itself
-                if (item != null && pos != pos2 + start) {
-                    List<T> tempNegItems = ((NegativeSampler<T>) sampler).negItems();
-                    List<T> negItems = new ArrayList<>(tempNegItems.size());
-                    for (T negItem: tempNegItems) {
-                        //FIXME if the condition is not met, word pair is not sent (the original word2vec does the same)
-                        if (!negItem.equals(contextItem)) {
-                            negItems.add(negItem);
-                        }
-                    }
-            //        try {
-            //            Thread.sleep(0, 1);
-            //        } catch (InterruptedException e) {
-            //            e.printStackTrace();
-            //        }
-                    learnerStream.put(new ItemEvent(item, contextItem, negItems, false, item.toString()));
-                }
+  /**
+   * Send the training samples from a sentence
+   *
+   * @param data
+   */
+  protected void generateTraining(List<T> data) {
+    // Iterate through data items. For each item in context (contextItem) predict an item which is in the
+    // range of |window - reduced_window|
+    for (int pos = 0; pos < data.size(); pos++) {
+      T contextItem = data.get(pos);
+      // Generate a random window for each item
+      int reduced_window = Random.nextInt(window); // `b` in the original word2vec code
+      // now go over all items from the (reduced) window, predicting each one in turn
+      int start = Math.max(0, pos - window + reduced_window);
+      int end = pos + window + 1 - reduced_window;
+      //TODO shuffle sentence2 so that word pairs are not ordered by item: probably less collisions in the learning
+      List<T> sentence2 = data.subList(start, end > data.size() ? data.size() : end);
+      // Fixed a context item, iterate through items which have it in their context
+      for (int pos2 = 0; pos2 < sentence2.size(); pos2++) {
+        T item = sentence2.get(pos2);
+        // don't train on OOV items and on the `item` itself
+        if (item != null && pos != pos2 + start) {
+          List<T> tempNegItems = ((NegativeSampler<T>) sampler).negItems();
+          List<T> negItems = new ArrayList<>(tempNegItems.size());
+          for (T negItem : tempNegItems) {
+            //FIXME if the condition is not met, word pair is not sent (the original word2vec does the same)
+            if (!negItem.equals(contextItem)) {
+              negItems.add(negItem);
             }
+          }
+          //        try {
+          //            Thread.sleep(0, 1);
+          //        } catch (InterruptedException e) {
+          //            e.printStackTrace();
+          //        }
+          learnerStream.put(new ItemEvent(item, contextItem, negItems, false, item.toString()));
         }
+      }
     }
+  }
 
 //    /**
 //     * Send the training sample to a random learner by event key (for key-based stream distribution)
@@ -139,16 +141,16 @@ public class SGNSItemGenerator<T> extends SamplerProcessor<T> {
 //        learnerStream.put(new ItemEvent(item, contextItem, negItems, false, outKey));
 //    }
 
-    @Override
-    public Processor newProcessor(Processor processor) {
-        SGNSItemGenerator p = (SGNSItemGenerator) processor;
-        SGNSItemGenerator w = new SGNSItemGenerator(p.sampler.copy(), p.window);
-        w.learnerStream = p.learnerStream;
-        w.learnerAllStream = p.learnerAllStream;
-        w.modelStream = p.modelStream;
-        w.dataCount = p.dataCount;
-        w.firstDataReceived = p.firstDataReceived;
-        w.setSeed(p.seed);
-        return w;
-    }
+  @Override
+  public Processor newProcessor(Processor processor) {
+    SGNSItemGenerator p = (SGNSItemGenerator) processor;
+    SGNSItemGenerator w = new SGNSItemGenerator(p.sampler.copy(), p.window);
+    w.learnerStream = p.learnerStream;
+    w.learnerAllStream = p.learnerAllStream;
+    w.modelStream = p.modelStream;
+    w.dataCount = p.dataCount;
+    w.firstDataReceived = p.firstDataReceived;
+    w.setSeed(p.seed);
+    return w;
+  }
 }

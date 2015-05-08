@@ -37,123 +37,122 @@ import java.util.Map;
 
 public class UnderSampler<T> implements Sampler<T> {
 
-    private static final long serialVersionUID = 7708676565227109647L;
-    private double subsamplThr = 0.0;
-    //FIXME the vocab type has to be a parameter
-    private Counter<T> vocab;
-    private Double normFactor;
-    private long seed = 1;
-    //FIXME setting the capacity to MAX_VALUE for some data structures can be dangerous (huge allocation of memory)
-    private int capacity = Integer.MAX_VALUE;
-    //FIXME use hash values instead of strings (from IndexerProcessor to the model)
-    private long itemCount;
+  private static final long serialVersionUID = 7708676565227109647L;
+  private double subsamplThr = 0.0;
+  public FloatOption subsamplThrOption = new FloatOption("subsampleThreshold", 's', "Threshold in words sub-sampling, " +
+      "the t parameter in the article.", subsamplThr);
+  //FIXME the vocab type has to be a parameter
+  private Counter<T> vocab;
+  private Double normFactor;
+  private long seed = 1;
+  //FIXME setting the capacity to MAX_VALUE for some data structures can be dangerous (huge allocation of memory)
+  private int capacity = Integer.MAX_VALUE;
+  public IntOption capacityOption = new IntOption("capacity", 'c', "The capacity of the counters for word counts " +
+      "estimation.", capacity);
+  //FIXME use hash values instead of strings (from IndexerProcessor to the model)
+  private long itemCount;
+  private boolean firstInit = true;
 
-    public FloatOption subsamplThrOption = new FloatOption("subsampleThreshold", 's', "Threshold in words sub-sampling, " +
-            "the t parameter in the article.", subsamplThr);
-    public IntOption capacityOption = new IntOption("capacity", 'c', "The capacity of the counters for word counts " +
-            "estimation.", capacity);
-    private boolean firstInit = true;
 
+  public UnderSampler(double subsamplThr, int capacity) {
+    init(subsamplThr, capacity, seed);
+  }
 
-    public UnderSampler(double subsamplThr, int capacity) {
-        init(subsamplThr, capacity, seed);
+  public UnderSampler() {
+    init(subsamplThr, capacity, seed);
+  }
+
+  @Override
+  public boolean initConfiguration() {
+    double newSubsamplThr = subsamplThrOption.getValue();
+    int newCapacity = capacityOption.getValue();
+    if (firstInit || newSubsamplThr != subsamplThr || newCapacity != capacity) {
+      init(newSubsamplThr, newCapacity, 1);
+      firstInit = false;
+      return true;
+    } else {
+      return false;
     }
+  }
 
-    public UnderSampler() {
-        init(subsamplThr, capacity, seed);
-    }
+  public void init(double subsamplThr, int capacity, long seed) {
+    this.subsamplThr = subsamplThr;
+    this.capacity = capacity;
+    this.setSeed(seed);
+    normFactor = 1.0;
+    itemCount = 0;
+    //TODO a very interesting alternative is time-aware counter: yongsub_CIKM2014.pdf
+    vocab = new StreamSummary<T>(capacity);
+  }
 
-    @Override
-    public boolean initConfiguration() {
-        double newSubsamplThr = subsamplThrOption.getValue();
-        int newCapacity = capacityOption.getValue();
-        if (firstInit || newSubsamplThr != subsamplThr || newCapacity != capacity) {
-            init(newSubsamplThr, newCapacity, 1);
-            firstInit = false;
-            return true;
-        } else {
-            return false;
+  @Override
+  public List<T> undersample(List<T> data) {
+    List<T> sampledData = new ArrayList<T>();
+    for (T item : data) {
+      if (vocab.containsKey(item)) {
+        long count = vocab.get(item);
+        // Subsampling probability
+        double prob = Math.min(subsamplThr > 0 ? Math.sqrt(subsamplThr / ((double) count / itemCount)) : 1.0, 1.0);
+        if (prob >= 1.0 || prob >= Random.nextDouble()) {
+          sampledData.add(item);
         }
+      }
     }
+    return sampledData;
+  }
 
-    public void init(double subsamplThr, int capacity, long seed) {
-        this.subsamplThr = subsamplThr;
-        this.capacity = capacity;
-        this.setSeed(seed);
-        normFactor = 1.0;
-        itemCount = 0;
-        //TODO a very interesting alternative is time-aware counter: yongsub_CIKM2014.pdf
-        vocab = new StreamSummary<T>(capacity);
+  @Override
+  public void update() {
+
+  }
+
+  @Override
+  public long getItemCount() {
+    return itemCount;
+  }
+
+  public void setItemCount(long itemCount) {
+    this.itemCount = itemCount;
+  }
+
+  @Override
+  public long get(T item) {
+    return vocab.get(item);
+  }
+
+  @Override
+  public void put(T item, long frequency) {
+    if (item != null && frequency > 0) {
+      vocab.put(item, frequency);
     }
+  }
 
-    @Override
-    public List<T> undersample(List<T> data) {
-        List<T> sampledData = new ArrayList<T>();
-        for (T item: data) {
-            if (vocab.containsKey(item)) {
-                long count = vocab.get(item);
-                // Subsampling probability
-                double prob = Math.min(subsamplThr > 0 ? Math.sqrt(subsamplThr / ((double) count / itemCount)) : 1.0, 1.0);
-                if (prob >= 1.0 || prob >= Random.nextDouble()) {
-                    sampledData.add(item);
-                }
-            }
-        }
-        return sampledData;
+  @Override
+  public void remove(T item) {
+    if (item != null) {
+      vocab.remove(item);
     }
+  }
 
-    @Override
-    public void update() {
+  @Override
+  public long size() {
+    return vocab.size();
+  }
 
-    }
+  @Override
+  public void setSeed(long seed) {
+    this.seed = seed;
+    Random.seed(seed);
+  }
 
-    @Override
-    public long getItemCount() {
-        return itemCount;
-    }
-
-    public void setItemCount(long itemCount) {
-        this.itemCount = itemCount;
-    }
-
-    @Override
-    public long get(T item) {
-        return vocab.get(item);
-    }
-
-    @Override
-    public void put(T item, long frequency) {
-        if (item != null && frequency > 0) {
-            vocab.put(item, frequency);
-        }
-    }
-
-    @Override
-    public void remove(T item) {
-        if (item != null) {
-            vocab.remove(item);
-        }
-    }
-
-    @Override
-    public long size() {
-        return vocab.size();
-    }
-
-    @Override
-    public void setSeed(long seed) {
-        this.seed = seed;
-        Random.seed(seed);
-    }
-
-    @Override
-    public Sampler<T> copy() {
-        UnderSampler<T> s = new UnderSampler<T>(subsamplThr, capacity);
-        s.setSeed(seed);
-        s.normFactor = normFactor;
-        s.itemCount = itemCount;
-        //FIXME need to clone this!
-        s.vocab = vocab;
-        return s;
-    }
+  @Override
+  public Sampler<T> copy() {
+    UnderSampler<T> s = new UnderSampler<T>(subsamplThr, capacity);
+    s.setSeed(seed);
+    s.normFactor = normFactor;
+    s.itemCount = itemCount;
+    //FIXME need to clone this!
+    s.vocab = vocab;
+    return s;
+  }
 }

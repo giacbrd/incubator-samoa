@@ -30,48 +30,48 @@ import java.util.Set;
  */
 public class IndexUpdateEvent<T> implements ContentEvent {
 
-    private static final long serialVersionUID = 7608806911635852512L;
-    private T item;
-    private long count;
-    private Map<T, Long> removedItems;
-    private String key;
-    private boolean isLastEvent;
+  private static final long serialVersionUID = 7608806911635852512L;
+  private T item;
+  private long count;
+  private Map<T, Long> removedItems;
+  private String key;
+  private boolean isLastEvent;
 
-    public IndexUpdateEvent() {
-    }
+  public IndexUpdateEvent() {
+  }
 
-    public IndexUpdateEvent(T item, long count, Map<T, Long> removedItems, boolean isLastEvent) {
-        this.item = item;
-        this.count = count;
-        this.removedItems = removedItems;
-        this.isLastEvent = isLastEvent;
-    }
+  public IndexUpdateEvent(T item, long count, Map<T, Long> removedItems, boolean isLastEvent) {
+    this.item = item;
+    this.count = count;
+    this.removedItems = removedItems;
+    this.isLastEvent = isLastEvent;
+  }
 
-    @Override
-    public String getKey() {
-        return key;
-    }
+  @Override
+  public String getKey() {
+    return key;
+  }
 
-    @Override
-    public void setKey(String key) {
-        this.key = key;
-    }
+  @Override
+  public void setKey(String key) {
+    this.key = key;
+  }
 
-    @Override
-    public boolean isLastEvent() {
-        return isLastEvent;
-    }
+  @Override
+  public boolean isLastEvent() {
+    return isLastEvent;
+  }
 
 
-    public Map<T, Long> getRemovedItems() {
-        return removedItems;
-    }
+  public Map<T, Long> getRemovedItems() {
+    return removedItems;
+  }
 
-    public T getItem() {
-        return item;
-    }
+  public T getItem() {
+    return item;
+  }
 
-    public long getCount() {
-        return count;
-    }
+  public long getCount() {
+    return count;
+  }
 }

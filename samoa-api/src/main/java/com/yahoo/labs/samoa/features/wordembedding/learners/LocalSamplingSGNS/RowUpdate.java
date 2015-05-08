@@ -28,48 +28,48 @@ import org.jblas.DoubleMatrix;
  */
 public class RowUpdate<T> implements ContentEvent {
 
-    private static final long serialVersionUID = 65885385385095409L;
-    private T item;
-    private DoubleMatrix row;
-    private DoubleMatrix contextRow;
-    private String key;
-    private boolean isLastEvent = false;
+  private static final long serialVersionUID = 65885385385095409L;
+  private T item;
+  private DoubleMatrix row;
+  private DoubleMatrix contextRow;
+  private String key;
+  private boolean isLastEvent = false;
 
-    public RowUpdate() {
-    }
+  public RowUpdate() {
+  }
 
-    public RowUpdate(T item, DoubleMatrix row, DoubleMatrix contextRow, String key) {
-        this.item = item;
-        this.row = row;
-        this.contextRow = contextRow;
-        this.key = key;
-    }
+  public RowUpdate(T item, DoubleMatrix row, DoubleMatrix contextRow, String key) {
+    this.item = item;
+    this.row = row;
+    this.contextRow = contextRow;
+    this.key = key;
+  }
 
-    @Override
-    public String getKey() {
-        return key;
-    }
+  @Override
+  public String getKey() {
+    return key;
+  }
 
-    @Override
-    public void setKey(String key) {
+  @Override
+  public void setKey(String key) {
 
-        this.key = key;
-    }
+    this.key = key;
+  }
 
-    @Override
-    public boolean isLastEvent() {
-        return isLastEvent;
-    }
+  @Override
+  public boolean isLastEvent() {
+    return isLastEvent;
+  }
 
-    public T getItem() {
-        return item;
-    }
+  public T getItem() {
+    return item;
+  }
 
-    public DoubleMatrix getRow() {
-        return row;
-    }
+  public DoubleMatrix getRow() {
+    return row;
+  }
 
-    public DoubleMatrix getContextRow() {
-        return contextRow;
-    }
+  public DoubleMatrix getContextRow() {
+    return contextRow;
+  }
 }

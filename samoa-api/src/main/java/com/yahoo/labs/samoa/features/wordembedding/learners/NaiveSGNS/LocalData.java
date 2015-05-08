@@ -28,34 +28,34 @@ import java.util.List;
 import java.util.Map;
 
 /**
-* Created by giacomo on 27/01/15.
-*/
+ * Created by giacomo on 27/01/15.
+ */
 class LocalData<T> implements Serializable {
 
-    private static final long serialVersionUID = -5572720849350089181L;
+  private static final long serialVersionUID = -5572720849350089181L;
 
-    final T item;
-    final T contextItem;
-    final List<T> negItems;
-    final Map<T, MutablePair<DoubleMatrix, DoubleMatrix>> externalRows;
-    int dataCount = 0;
-    final int totalData;
+  final T item;
+  final T contextItem;
+  final List<T> negItems;
+  final Map<T, MutablePair<DoubleMatrix, DoubleMatrix>> externalRows;
+  final int totalData;
+  int dataCount = 0;
 
-    LocalData(T item, T contextItem, List<T> negItems, Map<T, MutablePair<DoubleMatrix, DoubleMatrix>> externalRows, int totalData) {
-        this.item = item;
-        this.contextItem = contextItem;
-        this.negItems = negItems;
-        this.externalRows = externalRows;
-        this.totalData = totalData;
+  LocalData(T item, T contextItem, List<T> negItems, Map<T, MutablePair<DoubleMatrix, DoubleMatrix>> externalRows, int totalData) {
+    this.item = item;
+    this.contextItem = contextItem;
+    this.negItems = negItems;
+    this.externalRows = externalRows;
+    this.totalData = totalData;
+  }
+
+  LocalData<T> copy() {
+    LocalData<T> l = new LocalData<T>(item, contextItem, negItems, externalRows, totalData);
+    for (T extItem : externalRows.keySet()) {
+      l.externalRows.put(extItem, new MutablePair<DoubleMatrix, DoubleMatrix>(
+          externalRows.get(extItem).getLeft().dup(), externalRows.get(extItem).getRight().dup()));
     }
-
-    LocalData<T> copy() {
-        LocalData<T> l = new LocalData<T>(item, contextItem, negItems, externalRows, totalData);
-        for (T extItem: externalRows.keySet()) {
-            l.externalRows.put(extItem, new MutablePair<DoubleMatrix, DoubleMatrix>(
-                    externalRows.get(extItem).getLeft().dup(), externalRows.get(extItem).getRight().dup()));
-        }
-        l.dataCount = dataCount;
-        return l;
-    }
+    l.dataCount = dataCount;
+    return l;
+  }
 }

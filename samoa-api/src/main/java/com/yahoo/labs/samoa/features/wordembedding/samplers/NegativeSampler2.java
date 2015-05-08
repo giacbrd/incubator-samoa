@@ -40,212 +40,211 @@ import java.util.Map;
 //FIXME subclass UnderSampler
 public class NegativeSampler2<T> implements Sampler<T> {
 
-    private static final Logger logger = LoggerFactory.getLogger(NegativeSampler2.class);
-    private static final long serialVersionUID = 7708675565227109637L;
+  private static final Logger logger = LoggerFactory.getLogger(NegativeSampler2.class);
+  private static final long serialVersionUID = 7708675565227109637L;
 
-    private double subsamplThr = 0.0;
-    private Counter<T> vocab;
-    private int itemsPerUpdate = 100000;
-    private Double normFactor;
-    private double power = 0.75;
-    private int[] table;
-    private int tableSize = 100000000;
-    private long seed = 1;
-    //FIXME setting the capacity to MAX_VALUE for some data structures can be dangerous (huge allocation of memory)
-    private int capacity = Integer.MAX_VALUE;
-    //FIXME use hash values instead of strings (from IndexerProcessor to the model)
-    private Object[] index2item;
-    private int negative = 10;
-    private long itemUpdates;
-    private long itemCount;
+  private double subsamplThr = 0.0;
+  public FloatOption subsamplThrOption = new FloatOption("subsampleThreshold", 's', "Threshold in words sub-sampling, " +
+      "the t parameter in the article.", subsamplThr);
+  private Counter<T> vocab;
+  private int itemsPerUpdate = 100000;
+  public IntOption itemsPerUpdateOption = new IntOption("itemsPerUpdateOption", 'u', "Number of word index updates" +
+      "necessary for a new update of the table for negative sampling.", itemsPerUpdate);
+  private Double normFactor;
+  private double power = 0.75;
+  public FloatOption powerOption = new FloatOption("power", 'p', "The power parameter in the unigram distribution for" +
+      "negative sampling.", power);
+  private int[] table;
+  private int tableSize = 100000000;
+  public IntOption tableSizeOption = new IntOption("tableSize", 't', "The size of the table for negative sampling.",
+      tableSize);
+  private long seed = 1;
+  //FIXME setting the capacity to MAX_VALUE for some data structures can be dangerous (huge allocation of memory)
+  private int capacity = Integer.MAX_VALUE;
+  public IntOption capacityOption = new IntOption("capacity", 'c', "The capacity of the counters for word counts " +
+      "estimation.", capacity);
+  //FIXME use hash values instead of strings (from IndexerProcessor to the model)
+  private Object[] index2item;
+  private int negative = 10;
+  public IntOption negativeOption = new IntOption("negative", 'n', "The number of negative samples, the k parameter " +
+      "in the article.", negative);
+  private long itemUpdates;
+  private long itemCount;
+  private boolean firstInit = true;
 
-    public IntOption itemsPerUpdateOption = new IntOption("itemsPerUpdateOption", 'u', "Number of word index updates" +
-            "necessary for a new update of the table for negative sampling.", itemsPerUpdate);
-    public FloatOption subsamplThrOption = new FloatOption("subsampleThreshold", 's', "Threshold in words sub-sampling, " +
-            "the t parameter in the article.", subsamplThr);
-    public FloatOption powerOption = new FloatOption("power", 'p', "The power parameter in the unigram distribution for" +
-            "negative sampling.", power);
-    public IntOption tableSizeOption = new IntOption("tableSize", 't', "The size of the table for negative sampling.",
-            tableSize);
-    public IntOption negativeOption = new IntOption("negative", 'n', "The number of negative samples, the k parameter " +
-            "in the article.", negative);
-    public IntOption capacityOption = new IntOption("capacity", 'c', "The capacity of the counters for word counts " +
-            "estimation.", capacity);
-    private boolean firstInit = true;
 
+  public NegativeSampler2(int negative, double power, int tableSize, double subsamplThr, int capacity,
+                          int itemsPerUpdate) {
+    init(negative, power, tableSize, subsamplThr, capacity, itemsPerUpdate, seed);
+  }
 
-    public NegativeSampler2(int negative, double power, int tableSize, double subsamplThr, int capacity,
-                            int itemsPerUpdate) {
-        init(negative, power, tableSize, subsamplThr, capacity, itemsPerUpdate, seed);
+  public NegativeSampler2() {
+    init(negative, power, tableSize, subsamplThr, capacity, itemsPerUpdate, seed);
+  }
+
+  @Override
+  public boolean initConfiguration() {
+    int newNegative = negativeOption.getValue();
+    double newPower = powerOption.getValue();
+    int newTableSize = tableSizeOption.getValue();
+    double newSubsamplThr = subsamplThrOption.getValue();
+    int newCapacity = capacityOption.getValue();
+    int newItemsPerUpdate = itemsPerUpdateOption.getValue();
+    if (firstInit || newNegative != negative || newPower != power || newTableSize != tableSize
+        || newSubsamplThr != subsamplThr || newCapacity != capacity || newItemsPerUpdate != itemsPerUpdate) {
+      init(newNegative, newPower, newTableSize, newSubsamplThr, newCapacity, newItemsPerUpdate, 1);
+      firstInit = false;
+      return true;
+    } else {
+      return false;
     }
+  }
 
-    public NegativeSampler2() {
-        init(negative, power, tableSize, subsamplThr, capacity, itemsPerUpdate, seed);
-    }
+  public void init(int negative, double power, int tableSize, double subsamplThr, int capacity,
+                   int wordsPerUpdate, long seed) {
+    this.negative = negative;
+    this.power = power;
+    this.tableSize = tableSize;
+    this.subsamplThr = subsamplThr;
+    this.capacity = capacity;
+    this.itemsPerUpdate = wordsPerUpdate;
+    this.setSeed(seed);
+    itemUpdates = 0;
+    index2item = new Object[0];
+    normFactor = 1.0;
+    itemCount = 0;
+    //TODO a very interesting alternative is time-aware counter: yongsub_CIKM2014.pdf
+    vocab = new StreamSummary<T>(capacity);
+  }
 
-    @Override
-    public boolean initConfiguration() {
-        int newNegative = negativeOption.getValue();
-        double newPower = powerOption.getValue();
-        int newTableSize = tableSizeOption.getValue();
-        double newSubsamplThr = subsamplThrOption.getValue();
-        int newCapacity = capacityOption.getValue();
-        int newItemsPerUpdate = itemsPerUpdateOption.getValue();
-        if (firstInit || newNegative != negative || newPower != power || newTableSize != tableSize
-                || newSubsamplThr != subsamplThr || newCapacity != capacity || newItemsPerUpdate != itemsPerUpdate) {
-            init(newNegative, newPower, newTableSize, newSubsamplThr, newCapacity, newItemsPerUpdate, 1);
-            firstInit = false;
-            return true;
-        } else {
-            return false;
+  @Override
+  public List<T> undersample(List<T> data) {
+    List<T> sampledData = new ArrayList<T>();
+    for (T item : data) {
+      if (vocab.containsKey(item)) {
+        long count = vocab.get(item);
+        // Subsampling probability
+        double prob = Math.min(subsamplThr > 0 ? Math.sqrt(subsamplThr / ((double) count / itemCount)) : 1.0, 1.0);
+        if (prob >= 1.0 || prob >= Random.nextDouble()) {
+          sampledData.add(item);
         }
+      }
     }
+    return sampledData;
+  }
 
-    public void init(int negative, double power, int tableSize, double subsamplThr, int capacity,
-                           int wordsPerUpdate, long seed) {
-        this.negative = negative;
-        this.power = power;
-        this.tableSize = tableSize;
-        this.subsamplThr = subsamplThr;
-        this.capacity = capacity;
-        this.itemsPerUpdate = wordsPerUpdate;
-        this.setSeed(seed);
-        itemUpdates = 0;
-        index2item = new Object[0];
-        normFactor = 1.0;
-        itemCount = 0;
-        //TODO a very interesting alternative is time-aware counter: yongsub_CIKM2014.pdf
-        vocab = new StreamSummary<T>(capacity);
+  // FIXME need a more fine and intelligent update (any library for computing distribution like this?)
+  // FIXME asynchronous with FutureTask
+  @Override
+  public void update() {
+    table = new int[tableSize]; //table (= list of words) of noise distribution for negative sampling
+    //compute sum of all power (Z in paper)
+    normFactor = 0.0;
+    int vocabSize = vocab.size();
+    Iterator<Map.Entry<T, Long>> vocabIter = vocab.iterator();
+    while (vocabIter.hasNext()) {
+      normFactor += Math.pow(vocabIter.next().getValue(), power);
     }
-
-    @Override
-    public List<T> undersample(List<T> data) {
-        List<T> sampledData = new ArrayList<T>();
-        for (T item: data) {
-            if (vocab.containsKey(item)) {
-                long count = vocab.get(item);
-                // Subsampling probability
-                double prob = Math.min(subsamplThr > 0 ? Math.sqrt(subsamplThr / ((double) count / itemCount)) : 1.0, 1.0);
-                if (prob >= 1.0 || prob >= Random.nextDouble()) {
-                    sampledData.add(item);
-                }
-            }
+    //logger.info("normfactor "+normFactor);
+    //logger.info("SGNSSampler: constructing a table with noise distribution from {} words", vocabSize);
+    index2item = new Object[vocabSize];
+    //go through the whole table and fill it up with the word indexes proportional to a word's count**power
+    int widx = 0;
+    vocabIter = vocab.iterator();
+    Map.Entry<T, Long> vocabItem = vocabIter.next();
+    long count = vocabItem.getValue();
+    index2item[widx] = vocabItem.getKey();
+    // normalize count^0.75 by Z
+    double d1 = Math.pow(count, power) / normFactor;
+    for (int tidx = 0; tidx < tableSize; tidx++) {
+      table[tidx] = widx;
+      if ((double) tidx / tableSize > d1) {
+        widx++;
+        if (vocabIter.hasNext()) {
+          vocabItem = vocabIter.next();
+          count = vocabItem.getValue();
+          index2item[widx] = vocabItem.getKey();
+          d1 += Math.pow(count, power) / normFactor;
         }
-        return sampledData;
-    }
 
-    // FIXME need a more fine and intelligent update (any library for computing distribution like this?)
-    // FIXME asynchronous with FutureTask
-    @Override
-    public void update() {
-        table = new int[tableSize]; //table (= list of words) of noise distribution for negative sampling
-        //compute sum of all power (Z in paper)
-        normFactor = 0.0;
-        int vocabSize = vocab.size();
-        Iterator<Map.Entry<T, Long>> vocabIter = vocab.iterator();
-        while (vocabIter.hasNext()) {
-            normFactor += Math.pow(vocabIter.next().getValue(), power);
-        }
-        //logger.info("normfactor "+normFactor);
-        //logger.info("SGNSSampler: constructing a table with noise distribution from {} words", vocabSize);
-        index2item = new Object[vocabSize];
-        //go through the whole table and fill it up with the word indexes proportional to a word's count**power
-        int widx = 0;
-        vocabIter = vocab.iterator();
-        Map.Entry<T, Long> vocabItem = vocabIter.next();
-        long count = vocabItem.getValue();
-        index2item[widx] = vocabItem.getKey();
-        // normalize count^0.75 by Z
-        double d1 = Math.pow(count, power) / normFactor;
-        for (int tidx = 0; tidx < tableSize; tidx++) {
-            table[tidx] = widx;
-            if ((double)tidx / tableSize > d1) {
-                widx++;
-                if (vocabIter.hasNext()) {
-                    vocabItem = vocabIter.next();
-                    count = vocabItem.getValue();
-                    index2item[widx] = vocabItem.getKey();
-                    d1 += Math.pow(count, power) / normFactor;
-                }
-
-            }
-            if (widx >= vocabSize) {
-                widx = vocabSize - 1;
-            }
-        }
+      }
+      if (widx >= vocabSize) {
+        widx = vocabSize - 1;
+      }
     }
+  }
 
-    public List<T> negItems() {
-        List<T> negItems = new ArrayList<T>(negative);
-        if (table != null && table.length > 0) {
-            for (int i = 0; i < negative; i++) {
-                int neg = table[Random.nextInt(table.length)];
-                negItems.add((T) index2item[neg]);
-            }
-        }
-        return negItems;
+  public List<T> negItems() {
+    List<T> negItems = new ArrayList<T>(negative);
+    if (table != null && table.length > 0) {
+      for (int i = 0; i < negative; i++) {
+        int neg = table[Random.nextInt(table.length)];
+        negItems.add((T) index2item[neg]);
+      }
     }
+    return negItems;
+  }
 
-    @Override
-    public long getItemCount() {
-        return itemCount;
-    }
+  @Override
+  public long getItemCount() {
+    return itemCount;
+  }
 
-    public void setItemCount(long itemCount) {
-        this.itemCount = itemCount;
-    }
+  public void setItemCount(long itemCount) {
+    this.itemCount = itemCount;
+  }
 
-    @Override
-    public long get(T item) {
-        return vocab.get(item);
-    }
+  @Override
+  public long get(T item) {
+    return vocab.get(item);
+  }
 
-    @Override
-    public void put(T item, long frequency) {
-        vocab.put(item, frequency);
-        checkUpdate();
-    }
+  @Override
+  public void put(T item, long frequency) {
+    vocab.put(item, frequency);
+    checkUpdate();
+  }
 
-    @Override
-    public void remove(T item) {
-        vocab.remove(item);
-        checkUpdate();
-    }
+  @Override
+  public void remove(T item) {
+    vocab.remove(item);
+    checkUpdate();
+  }
 
-    private void checkUpdate() {
-        itemUpdates++;
-        if (itemUpdates % itemsPerUpdate == 0) {
-            update();
-        }
+  private void checkUpdate() {
+    itemUpdates++;
+    if (itemUpdates % itemsPerUpdate == 0) {
+      update();
     }
+  }
 
-    @Override
-    public long size() {
-        return vocab.size();
-    }
+  @Override
+  public long size() {
+    return vocab.size();
+  }
 
-    @Override
-    public void setSeed(long seed) {
-        this.seed = seed;
-        Random.seed(seed);
-    }
+  @Override
+  public void setSeed(long seed) {
+    this.seed = seed;
+    Random.seed(seed);
+  }
 
-    @Override
-    public Sampler<T> copy() {
-        NegativeSampler2<T> s = new NegativeSampler2<T>(negative, power, tableSize, subsamplThr, capacity, itemsPerUpdate);
-        s.itemsPerUpdateOption = (IntOption) itemsPerUpdateOption.copy();
-        s.subsamplThrOption = (FloatOption) subsamplThrOption.copy();
-        s.powerOption = (FloatOption) powerOption.copy();
-        s.tableSizeOption = (IntOption) tableSizeOption.copy();
-        s.negativeOption = (IntOption) negativeOption.copy();
-        s.capacityOption = (IntOption) capacityOption.copy();
-        s.setSeed(seed);
-        s.itemUpdates = itemUpdates;
-        s.index2item = index2item.clone();
-        s.normFactor = normFactor;
-        s.itemCount = itemCount;
-        //FIXME need to clone this!
-        s.vocab = vocab;
-        return s;
-    }
+  @Override
+  public Sampler<T> copy() {
+    NegativeSampler2<T> s = new NegativeSampler2<T>(negative, power, tableSize, subsamplThr, capacity, itemsPerUpdate);
+    s.itemsPerUpdateOption = (IntOption) itemsPerUpdateOption.copy();
+    s.subsamplThrOption = (FloatOption) subsamplThrOption.copy();
+    s.powerOption = (FloatOption) powerOption.copy();
+    s.tableSizeOption = (IntOption) tableSizeOption.copy();
+    s.negativeOption = (IntOption) negativeOption.copy();
+    s.capacityOption = (IntOption) capacityOption.copy();
+    s.setSeed(seed);
+    s.itemUpdates = itemUpdates;
+    s.index2item = index2item.clone();
+    s.normFactor = normFactor;
+    s.itemCount = itemCount;
+    //FIXME need to clone this!
+    s.vocab = vocab;
+    return s;
+  }
 }

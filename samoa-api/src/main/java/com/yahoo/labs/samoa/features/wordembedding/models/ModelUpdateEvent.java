@@ -28,43 +28,43 @@ import org.jblas.DoubleMatrix;
  */
 public class ModelUpdateEvent<T> implements ContentEvent {
 
-    private static final long serialVersionUID = 307699218307673092L;
-    private String key;
-    private T word;
-    private DoubleMatrix row;
-    private boolean isLastEvent;
+  private static final long serialVersionUID = 307699218307673092L;
+  private String key;
+  private T word;
+  private DoubleMatrix row;
+  private boolean isLastEvent;
 
-    public ModelUpdateEvent() {
-    }
+  public ModelUpdateEvent() {
+  }
 
-    public ModelUpdateEvent(T word, DoubleMatrix row, boolean isLastEvent) {
-        this.word = word;
-        this.row = row;
-        this.isLastEvent = isLastEvent;
-    }
+  public ModelUpdateEvent(T word, DoubleMatrix row, boolean isLastEvent) {
+    this.word = word;
+    this.row = row;
+    this.isLastEvent = isLastEvent;
+  }
 
-    @Override
-    public String getKey() {
-        return key;
-    }
+  @Override
+  public String getKey() {
+    return key;
+  }
 
-    @Override
-    public void setKey(String key) {
+  @Override
+  public void setKey(String key) {
 
-        this.key = key;
-    }
+    this.key = key;
+  }
 
-    public T getWord() {
-        return word;
-    }
+  public T getWord() {
+    return word;
+  }
 
-    public DoubleMatrix getRow() {
-        return row;
-    }
+  public DoubleMatrix getRow() {
+    return row;
+  }
 
-    @Override
-    public boolean isLastEvent() {
-        return isLastEvent;
-    }
+  @Override
+  public boolean isLastEvent() {
+    return isLastEvent;
+  }
 
 }

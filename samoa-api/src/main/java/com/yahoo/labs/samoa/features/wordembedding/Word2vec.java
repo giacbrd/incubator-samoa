@@ -25,5 +25,5 @@ import com.yahoo.labs.samoa.features.FeatureLearner;
 /**
  * @author Giacomo Berardi <barnets@gmail.com>.
  */
-public class Word2vec implements FeatureLearner{
+public class Word2vec implements FeatureLearner {
 }

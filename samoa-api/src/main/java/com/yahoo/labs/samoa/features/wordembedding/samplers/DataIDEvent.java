@@ -27,44 +27,44 @@ import com.yahoo.labs.samoa.core.ContentEvent;
  */
 public class DataIDEvent<T> implements ContentEvent {
 
-    private static final long serialVersionUID = 9060297831528202419L;
+  private static final long serialVersionUID = 9060297831528202419L;
 
-    private long dataID;
-    private String key;
-    private boolean isLastEvent;
-    private int dataSize;
+  private long dataID;
+  private String key;
+  private boolean isLastEvent;
+  private int dataSize;
 
-    public DataIDEvent() {
-    }
+  public DataIDEvent() {
+  }
 
-    public DataIDEvent(long dataID, int dataSize, boolean isLastEvent, String key) {
-        this.dataSize = dataSize;
-        this.dataID = dataID;
-        this.isLastEvent = isLastEvent;
-        this.key = key;
-    }
+  public DataIDEvent(long dataID, int dataSize, boolean isLastEvent, String key) {
+    this.dataSize = dataSize;
+    this.dataID = dataID;
+    this.isLastEvent = isLastEvent;
+    this.key = key;
+  }
 
-    @Override
-    public String getKey() {
-        return key;
-    }
+  @Override
+  public String getKey() {
+    return key;
+  }
 
-    @Override
-    public void setKey(String key) {
+  @Override
+  public void setKey(String key) {
 
-        this.key = key;
-    }
+    this.key = key;
+  }
 
-    @Override
-    public boolean isLastEvent() {
-        return isLastEvent;
-    }
+  @Override
+  public boolean isLastEvent() {
+    return isLastEvent;
+  }
 
-    public long geDataID() {
-        return dataID;
-    }
+  public long geDataID() {
+    return dataID;
+  }
 
-    public int getDataSize() {
-        return dataSize;
-    }
+  public int getDataSize() {
+    return dataSize;
+  }
 }

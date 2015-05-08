@@ -31,57 +31,63 @@ import java.util.List;
  */
 public interface Sampler<T> extends Configurable, Serializable {
 
-    /**
-     * Initialize the configuration with the CLI options.
-     * If configuration options have changed everything is re-initialized.
-     * @return True if new configuration options are set.
-     */
-    boolean initConfiguration();
+  /**
+   * Initialize the configuration with the CLI options.
+   * If configuration options have changed everything is re-initialized.
+   *
+   * @return True if new configuration options are set.
+   */
+  boolean initConfiguration();
 
-    /**
-     * Undersample input data according to the Sampler type.
-     * @param data
-     * @return The same data input, order is preserved, some items are removed.
-     */
-    List<T> undersample(List<T> data);
+  /**
+   * Undersample input data according to the Sampler type.
+   *
+   * @param data
+   * @return The same data input, order is preserved, some items are removed.
+   */
+  List<T> undersample(List<T> data);
 
-    /**
-     * "Manually" update internal items distribution representation, possibly asynchronously.
-     */
-    void update();
+  /**
+   * "Manually" update internal items distribution representation, possibly asynchronously.
+   */
+  void update();
 
-    /**
-     * The frequency (count) of an item, used for computing sampling probabilities.
-     * @param item
-     * @return The item's frequency, 0 if the item does not exist.
-     */
-    long get(T item);
+  /**
+   * The frequency (count) of an item, used for computing sampling probabilities.
+   *
+   * @param item
+   * @return The item's frequency, 0 if the item does not exist.
+   */
+  long get(T item);
 
-    /**
-     * Set the new frequency of the item.
-     * @param item
-     * @param frequency Must be > 0
-     */
-    void put(T item, long frequency);
+  /**
+   * Set the new frequency of the item.
+   *
+   * @param item
+   * @param frequency Must be > 0
+   */
+  void put(T item, long frequency);
 
-    void remove(T item);
+  void remove(T item);
 
-    /**
-     * Number of unique items.
-     * @return
-     */
-    long size();
+  /**
+   * Number of unique items.
+   *
+   * @return
+   */
+  long size();
 
-    void setSeed(long seed);
+  void setSeed(long seed);
 
-    Sampler<T> copy();
+  Sampler<T> copy();
 
-    /**
-     * Set the true sum of item frequencies, so that the sampler can have the exact value and not an approximated one.
-     * @param itemCount
-     */
-    //FIXME rename in totalItemCount
-    void setItemCount(long itemCount);
+  long getItemCount();
 
-    long getItemCount();
+  /**
+   * Set the true sum of item frequencies, so that the sampler can have the exact value and not an approximated one.
+   *
+   * @param itemCount
+   */
+  //FIXME rename in totalItemCount
+  void setItemCount(long itemCount);
 }

@@ -27,40 +27,41 @@ import com.yahoo.labs.samoa.core.ContentEvent;
  */
 public class OneContentEvent<T> implements ContentEvent {
 
-    private static final long serialVersionUID = -7858923507064830826L;
-    private String key;
-    private T content;
-    private boolean isLastEvent;
+  private static final long serialVersionUID = -7858923507064830826L;
+  private String key;
+  private T content;
+  private boolean isLastEvent;
 
-    public OneContentEvent() {
-    }
+  public OneContentEvent() {
+  }
 
-    public OneContentEvent(T content, boolean isLastEvent) {
-        this.content = content;
-        this.isLastEvent = isLastEvent;
-    }
-    public OneContentEvent(T content, boolean isLastEvent, String key) {
-        this(content, isLastEvent);
-        this.key = key;
-    }
+  public OneContentEvent(T content, boolean isLastEvent) {
+    this.content = content;
+    this.isLastEvent = isLastEvent;
+  }
+
+  public OneContentEvent(T content, boolean isLastEvent, String key) {
+    this(content, isLastEvent);
+    this.key = key;
+  }
 
 
-    @Override
-    public String getKey() {
-        return key;
-    }
+  @Override
+  public String getKey() {
+    return key;
+  }
 
-    @Override
-    public void setKey(String key) {
-        this.key = key;
-    }
+  @Override
+  public void setKey(String key) {
+    this.key = key;
+  }
 
-    @Override
-    public boolean isLastEvent() {
-        return isLastEvent;
-    }
+  @Override
+  public boolean isLastEvent() {
+    return isLastEvent;
+  }
 
-    public T getContent() {
-        return content;
-    }
+  public T getContent() {
+    return content;
+  }
 }

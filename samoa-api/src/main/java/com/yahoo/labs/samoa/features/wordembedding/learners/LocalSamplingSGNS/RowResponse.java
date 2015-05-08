@@ -28,54 +28,54 @@ import org.jblas.DoubleMatrix;
  */
 public class RowResponse<T> implements ContentEvent {
 
-    private static final long serialVersionUID = -6269812669182472509L;
-    private T item;
-    private int position;
-    private DoubleMatrix row;
-    private DoubleMatrix contextRow;
-    private String key;
-    private boolean isLastEvent = false;
+  private static final long serialVersionUID = -6269812669182472509L;
+  private T item;
+  private int position;
+  private DoubleMatrix row;
+  private DoubleMatrix contextRow;
+  private String key;
+  private boolean isLastEvent = false;
 
-    public RowResponse() {
-    }
+  public RowResponse() {
+  }
 
-    public RowResponse(T item, int position, DoubleMatrix row, DoubleMatrix contextRow, String key) {
-        this.item = item;
-        this.position = position;
-        this.row = row;
-        this.contextRow = contextRow;
-        this.key = key;
-    }
+  public RowResponse(T item, int position, DoubleMatrix row, DoubleMatrix contextRow, String key) {
+    this.item = item;
+    this.position = position;
+    this.row = row;
+    this.contextRow = contextRow;
+    this.key = key;
+  }
 
-    @Override
-    public String getKey() {
-        return key;
-    }
+  @Override
+  public String getKey() {
+    return key;
+  }
 
-    @Override
-    public void setKey(String key) {
+  @Override
+  public void setKey(String key) {
 
-        this.key = key;
-    }
+    this.key = key;
+  }
 
-    @Override
-    public boolean isLastEvent() {
-        return isLastEvent;
-    }
+  @Override
+  public boolean isLastEvent() {
+    return isLastEvent;
+  }
 
-    public T getItem() {
-        return item;
-    }
+  public T getItem() {
+    return item;
+  }
 
-    public DoubleMatrix getRow() {
-        return row;
-    }
+  public DoubleMatrix getRow() {
+    return row;
+  }
 
-    public DoubleMatrix getContextRow() {
-        return contextRow;
-    }
+  public DoubleMatrix getContextRow() {
+    return contextRow;
+  }
 
-    public int getPosition() {
-        return position;
-    }
+  public int getPosition() {
+    return position;
+  }
 }

@@ -28,20 +28,20 @@ import com.yahoo.labs.samoa.features.wordembedding.samplers.ItemEvent;
  * @author Giacomo Berardi <barnets@gmail.com>.
  */
 public class TestProcessor implements Processor {
-    @Override
-    public boolean process(ContentEvent event) {
-        ItemEvent e = (ItemEvent) event;
-        //System.out.println(e.getItem() + " " + e.getContextItem());
-        return true;
-    }
+  @Override
+  public boolean process(ContentEvent event) {
+    ItemEvent e = (ItemEvent) event;
+    //System.out.println(e.getItem() + " " + e.getContextItem());
+    return true;
+  }
 
-    @Override
-    public void onCreate(int id) {
+  @Override
+  public void onCreate(int id) {
 
-    }
+  }
 
-    @Override
-    public Processor newProcessor(Processor processor) {
-        return new TestProcessor();
-    }
+  @Override
+  public Processor newProcessor(Processor processor) {
+    return new TestProcessor();
+  }
 }

@@ -28,32 +28,33 @@ import java.io.Serializable;
 /**
  * @author Giacomo Berardi <barnets@gmail.com>.
  */
-public interface Model<T> extends Configurable, Serializable  {
+public interface Model<T> extends Configurable, Serializable {
 
-    /**
-     * Initialize the configuration with the CLI options.
-     * If configuration options have changed everything is re-initialized.
-     * @return True if new configuration options are set.
-     */
-    boolean initConfiguration();
+  /**
+   * Initialize the configuration with the CLI options.
+   * If configuration options have changed everything is re-initialized.
+   *
+   * @return True if new configuration options are set.
+   */
+  boolean initConfiguration();
 
-    int columns();
+  int columns();
 
-    long rows();
+  long rows();
 
-    DoubleMatrix getRow(T item);
+  DoubleMatrix getRow(T item);
 
-    DoubleMatrix getContextRow(T item);
+  DoubleMatrix getContextRow(T item);
 
-    void updateRow(T item, DoubleMatrix gradient);
+  void updateRow(T item, DoubleMatrix gradient);
 
-    void updateContextRow(T item, DoubleMatrix gradient);
+  void updateContextRow(T item, DoubleMatrix gradient);
 
-    boolean contains(T item);
+  boolean contains(T item);
 
-    long size();
+  long size();
 
-    void setSeed(long seed);
+  void setSeed(long seed);
 
 //    /**
 //     * Execute a learning step.
@@ -62,5 +63,5 @@ public interface Model<T> extends Configurable, Serializable  {
 //     */
 //    void train(T item, T contextItem);
 
-    Model<T> copy();
+  Model<T> copy();
 }

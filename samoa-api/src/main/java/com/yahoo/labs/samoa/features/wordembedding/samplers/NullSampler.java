@@ -35,56 +35,65 @@ import java.util.List;
 
 public class NullSampler<T> implements Sampler<T> {
 
-    private static final long serialVersionUID = 7708676565338109647L;
-    private long itemCount = 0;
+  private static final long serialVersionUID = 7708676565338109647L;
+  private long itemCount = 0;
 
-    @Override
-    public boolean initConfiguration() {
-        return false;
-    }
+  @Override
+  public boolean initConfiguration() {
+    return false;
+  }
 
-    @Override
-    public List<T> undersample(List<T> data) {
-        return data;
-    }
+  @Override
+  public List<T> undersample(List<T> data) {
+    return data;
+  }
 
-    @Override
-    public void update() {
+  @Override
+  public void update() {
 
-    }
+  }
 
-    @Override
-    public long getItemCount() {
-        return itemCount;
-    }
+  @Override
+  public long getItemCount() {
+    return itemCount;
+  }
 
-    public void setItemCount(long itemCount) {
-        this.itemCount = itemCount;
-    }
+  public void setItemCount(long itemCount) {
+    this.itemCount = itemCount;
+  }
 
-    @Override
-    public long get(T item) {
-        return -1;
-    }
+  @Override
+  public long get(T item) {
+    return -1;
+  }
 
-    @Override
-    public void put(T item, long frequency) {};
+  @Override
+  public void put(T item, long frequency) {
+  }
 
-    @Override
-    public void remove(T item) {};
+  ;
 
-    @Override
-    public long size() {
-        return -1;
-    }
+  @Override
+  public void remove(T item) {
+  }
 
-    @Override
-    public void setSeed(long seed) {};
+  ;
 
-    @Override
-    public Sampler<T> copy() {
-        NullSampler<T> s = new NullSampler<T>();
-        s.itemCount = itemCount;
-        return s;
-    }
+  @Override
+  public long size() {
+    return -1;
+  }
+
+  @Override
+  public void setSeed(long seed) {
+  }
+
+  ;
+
+  @Override
+  public Sampler<T> copy() {
+    NullSampler<T> s = new NullSampler<T>();
+    s.itemCount = itemCount;
+    return s;
+  }
 }

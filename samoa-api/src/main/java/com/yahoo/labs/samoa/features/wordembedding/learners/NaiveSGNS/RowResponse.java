@@ -28,55 +28,55 @@ import org.jblas.DoubleMatrix;
  */
 public class RowResponse<T> implements ContentEvent {
 
-    private static final long serialVersionUID = -2931184484248922861L;
-    private String sourceKey;
-    private T sourceItem;
-    private T responseItem;
-    private DoubleMatrix responseRow;
-    private String key;
-    private boolean isLastEvent = false;
+  private static final long serialVersionUID = -2931184484248922861L;
+  private String sourceKey;
+  private T sourceItem;
+  private T responseItem;
+  private DoubleMatrix responseRow;
+  private String key;
+  private boolean isLastEvent = false;
 
-    public RowResponse() {
-    }
+  public RowResponse() {
+  }
 
-    public RowResponse(String sourceKey, T sourceItem, T responseItem, DoubleMatrix responseRow) {
-        this.sourceKey = sourceKey;
-        this.sourceItem = sourceItem;
-        this.responseItem = responseItem;
-        this.responseRow = responseRow;
-        this.key = sourceItem.toString();
-    }
+  public RowResponse(String sourceKey, T sourceItem, T responseItem, DoubleMatrix responseRow) {
+    this.sourceKey = sourceKey;
+    this.sourceItem = sourceItem;
+    this.responseItem = responseItem;
+    this.responseRow = responseRow;
+    this.key = sourceItem.toString();
+  }
 
-    @Override
-    public String getKey() {
-        return key;
-    }
+  @Override
+  public String getKey() {
+    return key;
+  }
 
-    @Override
-    public void setKey(String key) {
+  @Override
+  public void setKey(String key) {
 
-        this.key = key;
-    }
+    this.key = key;
+  }
 
-    @Override
-    public boolean isLastEvent() {
-        return isLastEvent;
-    }
+  @Override
+  public boolean isLastEvent() {
+    return isLastEvent;
+  }
 
-    public T getSourceItem() {
-        return sourceItem;
-    }
+  public T getSourceItem() {
+    return sourceItem;
+  }
 
-    public T getResponseItem() {
-        return responseItem;
-    }
+  public T getResponseItem() {
+    return responseItem;
+  }
 
-    public DoubleMatrix getResponseRow() {
-        return responseRow;
-    }
+  public DoubleMatrix getResponseRow() {
+    return responseRow;
+  }
 
-    public String getSourceKey() {
-        return sourceKey;
-    }
+  public String getSourceKey() {
+    return sourceKey;
+  }
 
 }

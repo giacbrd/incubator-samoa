@@ -29,54 +29,54 @@ import java.util.List;
  */
 public class ItemEvent<T> implements ContentEvent {
 
-    private static final long serialVersionUID = 278023268642657276L;
-    private T item;
-    private T contextItem;
-    private List<T> negItems;
-    private String key;
-    private boolean isLastEvent;
+  private static final long serialVersionUID = 278023268642657276L;
+  private T item;
+  private T contextItem;
+  private List<T> negItems;
+  private String key;
+  private boolean isLastEvent;
 
-    public ItemEvent() {
-    }
+  public ItemEvent() {
+  }
 
-    public ItemEvent(T item, T contextItem, List<T> negItems, boolean isLastEvent) {
-        this.item = item;
-        this.contextItem = contextItem;
-        this.negItems = negItems;
-        this.isLastEvent = isLastEvent;
-    }
+  public ItemEvent(T item, T contextItem, List<T> negItems, boolean isLastEvent) {
+    this.item = item;
+    this.contextItem = contextItem;
+    this.negItems = negItems;
+    this.isLastEvent = isLastEvent;
+  }
 
-    public ItemEvent(T item, T contextItem, List<T> negItems, boolean isLastEvent, String key) {
-        this(item, contextItem, negItems, isLastEvent);
-        this.key = key;
-    }
+  public ItemEvent(T item, T contextItem, List<T> negItems, boolean isLastEvent, String key) {
+    this(item, contextItem, negItems, isLastEvent);
+    this.key = key;
+  }
 
-    @Override
-    public String getKey() {
-        return key;
-    }
+  @Override
+  public String getKey() {
+    return key;
+  }
 
-    @Override
-    public void setKey(String key) {
+  @Override
+  public void setKey(String key) {
 
-        this.key = key;
-    }
+    this.key = key;
+  }
 
-    @Override
-    public boolean isLastEvent() {
-        return isLastEvent;
-    }
+  @Override
+  public boolean isLastEvent() {
+    return isLastEvent;
+  }
 
-    public T getItem() {
-        return item;
-    }
+  public T getItem() {
+    return item;
+  }
 
-    public T getContextItem() {
-        return contextItem;
-    }
+  public T getContextItem() {
+    return contextItem;
+  }
 
-    public List<T> getNegItems() {
-        return negItems;
-    }
+  public List<T> getNegItems() {
+    return negItems;
+  }
 
 }

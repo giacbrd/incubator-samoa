@@ -27,43 +27,43 @@ import com.yahoo.labs.samoa.core.ContentEvent;
  */
 public class RowRequest<T> implements ContentEvent {
 
-    private static final long serialVersionUID = 8243807411847268772L;
-    private Long sourceDataID;
-    private T requestedItem;
-    private String key;
-    private boolean isLastEvent = false;
+  private static final long serialVersionUID = 8243807411847268772L;
+  private Long sourceDataID;
+  private T requestedItem;
+  private String key;
+  private boolean isLastEvent = false;
 
-    public RowRequest() {
-    }
+  public RowRequest() {
+  }
 
-    public RowRequest(Long sourceDataID, T requestedItem) {
-        this.sourceDataID = sourceDataID;
-        this.requestedItem = requestedItem;
-        this.key = requestedItem.toString();
-    }
+  public RowRequest(Long sourceDataID, T requestedItem) {
+    this.sourceDataID = sourceDataID;
+    this.requestedItem = requestedItem;
+    this.key = requestedItem.toString();
+  }
 
-    @Override
-    public String getKey() {
-        return key;
-    }
+  @Override
+  public String getKey() {
+    return key;
+  }
 
-    @Override
-    public void setKey(String key) {
+  @Override
+  public void setKey(String key) {
 
-        this.key = key;
-    }
+    this.key = key;
+  }
 
-    @Override
-    public boolean isLastEvent() {
-        return isLastEvent;
-    }
+  @Override
+  public boolean isLastEvent() {
+    return isLastEvent;
+  }
 
-    public T getRequestedItem() {
-        return requestedItem;
-    }
+  public T getRequestedItem() {
+    return requestedItem;
+  }
 
-    public Long getSourceDataID() {
-        return sourceDataID;
-    }
+  public Long getSourceDataID() {
+    return sourceDataID;
+  }
 
 }

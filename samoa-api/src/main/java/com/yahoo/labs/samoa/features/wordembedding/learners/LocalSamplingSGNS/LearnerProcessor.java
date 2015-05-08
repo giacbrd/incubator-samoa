@@ -43,188 +43,187 @@ import java.util.concurrent.Executors;
  */
 public class LearnerProcessor<T> implements Processor {
 
-    private static final long serialVersionUID = -2266852696732445189L;
+  private static final long serialVersionUID = -2266852696732445189L;
 
-    private static final Logger logger = LoggerFactory.getLogger(LearnerProcessor.class);
+  private static final Logger logger = LoggerFactory.getLogger(LearnerProcessor.class);
+  transient ExecutorService executor;
+  private volatile SGNSLocalLearner learner;
+  private short window;
+  private Sampler<T> sampler;
+  private long seed = 1;
+  private Stream synchroStream;
+  private Stream modelStream;
+  private volatile ConcurrentLinkedQueue<RowUpdate> synchroEvents;
+  private volatile ConcurrentLinkedQueue<ModelUpdateEvent> modelEvents;
+  private int id;
+  private long iterations;
+  //FIXME substitute with guava cache
+  private ConcurrentHashMap<Long, LocalData<T>> tempData = new ConcurrentHashMap<Long, LocalData<T>>();
+  private HashMap<Long, List<RowResponse>> waitingItems = new HashMap<>();
+  private int lastEventCount = 0;
+  private int samplerCount;
+  private boolean firstDataReceived = false;
+  //FIXME is necessary to control last events? it should be always only one
+  private boolean lastEventSent = false;
 
-    private volatile SGNSLocalLearner learner;
-    private short window;
-    private Sampler<T> sampler;
-    private long seed = 1;
-    private Stream synchroStream;
-    private Stream modelStream;
-    private volatile ConcurrentLinkedQueue<RowUpdate> synchroEvents;
-    private volatile ConcurrentLinkedQueue<ModelUpdateEvent> modelEvents;
-    private int id;
-    private long iterations;
-    //FIXME substitute with guava cache
-    private ConcurrentHashMap<Long, LocalData<T>> tempData = new ConcurrentHashMap<Long, LocalData<T>>();
-    private HashMap<Long, List<RowResponse>> waitingItems = new HashMap<>();
-    private int lastEventCount = 0;
-    private int samplerCount;
-    private boolean firstDataReceived = false;
-    //FIXME is necessary to control last events? it should be always only one
-    private boolean lastEventSent = false;
-    transient ExecutorService executor;
+  public LearnerProcessor(short window, SGNSLocalLearner localLearner, Sampler<T> sampler, int samplerCount) {
+    this.window = window;
+    this.sampler = sampler;
+    this.learner = localLearner;
+    this.samplerCount = samplerCount;
+    this.synchroEvents = new ConcurrentLinkedQueue<>();
+    this.modelEvents = new ConcurrentLinkedQueue<>();
+  }
 
-    public LearnerProcessor(short window, SGNSLocalLearner localLearner, Sampler<T> sampler, int samplerCount) {
-        this.window = window;
-        this.sampler = sampler;
-        this.learner = localLearner;
-        this.samplerCount = samplerCount;
-        this.synchroEvents = new ConcurrentLinkedQueue<>();
-        this.modelEvents = new ConcurrentLinkedQueue<>();
+  @Override
+  public void onCreate(int id) {
+    this.id = id;
+    this.learner.initConfiguration();
+    this.sampler.initConfiguration();
+    setSeed(seed);
+    //FIXME number of executors is a parameter
+    executor = Executors.newFixedThreadPool(10);
+  }
+
+  //FIXME sampler and learner have to use the same local index (no Space Saving necessary)
+  @Override
+  public boolean process(ContentEvent event) {
+    // Empty the queues of outgoing events generated after a learning call
+    pollEvents();
+    if (event instanceof IndexUpdateEvent) {
+      if (event.isLastEvent()) {
+        logger.info("LAST INDEXER");
+        return true;
+      }
+      IndexUpdateEvent<T> update = (IndexUpdateEvent<T>) event;
+      // Update local vocabulary
+      T item = update.getItem();
+      long count = update.getCount();
+      sampler.put(item, count);
+      //FIXME 10 is a parameter, it assumes to be > minCount
+      long itemCount = count > 0 ? (count >= 10 ? 10 : count) : 0;
+      Map<T, Long> removeUpdate = update.getRemovedItems();
+      for (T removedItem : removeUpdate.keySet()) {
+        itemCount -= removeUpdate.get(removedItem);
+        sampler.remove(removedItem);
+      }
+      sampler.setItemCount(sampler.getItemCount() + itemCount);
+      //FIXME expensive hack for adding a new item to the local learner and the model
+      modelStream.put(new ModelUpdateEvent(item, learner.getRow(item), false));
+      return true;
     }
-
-    @Override
-    public void onCreate(int id) {
-        this.id = id;
-        this.learner.initConfiguration();
-        this.sampler.initConfiguration();
-        setSeed(seed);
-        //FIXME number of executors is a parameter
-        executor = Executors.newFixedThreadPool(10);
-    }
-
-    //FIXME sampler and learner have to use the same local index (no Space Saving necessary)
-    @Override
-    public boolean process(ContentEvent event) {
-        // Empty the queues of outgoing events generated after a learning call
-        pollEvents();
-        if (event instanceof IndexUpdateEvent) {
-            if (event.isLastEvent()) {
-                logger.info("LAST INDEXER");
-                return true;
-            }
-            IndexUpdateEvent<T> update = (IndexUpdateEvent<T>) event;
-            // Update local vocabulary
-            T item = update.getItem();
-            long count = update.getCount();
-            sampler.put(item, count);
-            //FIXME 10 is a parameter, it assumes to be > minCount
-            long itemCount = count > 0 ? (count >= 10 ? 10 : count) : 0;
-            Map<T, Long> removeUpdate = update.getRemovedItems();
-            for(T removedItem: removeUpdate.keySet()) {
-                itemCount -= removeUpdate.get(removedItem);
-                sampler.remove(removedItem);
-            }
-            sampler.setItemCount(sampler.getItemCount() + itemCount);
-            //FIXME expensive hack for adding a new item to the local learner and the model
-            modelStream.put(new ModelUpdateEvent(item, learner.getRow(item), false));
-            return true;
-        }
-        if (event.isLastEvent()) {
-            lastEventCount++;
-            //FIXME it is not guaranteed that all the model updates after row updates will be sent!
-            if (lastEventCount >= samplerCount && !lastEventSent) {
-                //FIXME wait indefinitely! here we should do a join on the learning threads
-                //FIXME  commented because it does not work on storm, it won't execute the last learning iterations
-                //while (!tempData.isEmpty()) {};
-                logger.info(String.format("LearnerProcessor-%d: finished after %d iterations with %d items",
-                        id, iterations, learner.size()));
+    if (event.isLastEvent()) {
+      lastEventCount++;
+      //FIXME it is not guaranteed that all the model updates after row updates will be sent!
+      if (lastEventCount >= samplerCount && !lastEventSent) {
+        //FIXME wait indefinitely! here we should do a join on the learning threads
+        //FIXME  commented because it does not work on storm, it won't execute the last learning iterations
+        //while (!tempData.isEmpty()) {};
+        logger.info(String.format("LearnerProcessor-%d: finished after %d iterations with %d items",
+            id, iterations, learner.size()));
 //            executor.shutdown();
 //            while (!executor.isTerminated()) {};
-                modelStream.put(new ModelUpdateEvent(null, null, true));
-                lastEventSent = true;
-                return true;
-            }
-        } else if (event instanceof DataIDEvent) {
-            if (!firstDataReceived) {
-                firstDataReceived = true;
-                logger.info(this.getClass().getSimpleName()+"-{}: starting learning, the local negative sampler " +
-                        "contains {} items and {} item types", id, sampler.getItemCount(), sampler.size());
-                if (sampler.getItemCount() > 0) {
-                    sampler.update();
-                }
-            }
-            DataIDEvent<T> dataIDEvent = (DataIDEvent) event;
-            long dataID = dataIDEvent.geDataID();
-            LocalData<T> localData = new LocalData<T>((T[]) new Object[dataIDEvent.getDataSize()]);
-            //logger.info(id + ": new data: "+dataID+", length: "+localData.data.length + ", data size:" + tempData.size());
-            tempData.put(dataID, localData);
-            if (waitingItems.containsKey(dataID)) {
-                for (RowResponse<T> response: waitingItems.get(dataID)) {
-                    T item = (T) response.getItem();
-                    int pos = response.getPosition();
-                    DoubleMatrix row = response.getRow();
-                    DoubleMatrix contextRow = response.getContextRow();
-                    LocalData<T> currData = tempData.get(dataID);
-                    if (currData.setExternalItem(pos, item, row, contextRow)) {
-                        asyncLearn(dataID, currData);
-                    }
-                }
-                waitingItems.remove(dataID);
-            }
-        } else if (event instanceof ItemInDataEvent) {
-            ItemInDataEvent<T> newItemEvent = (ItemInDataEvent<T>) event;
-            long dataID = newItemEvent.getDataID();
-            T item = newItemEvent.getItem();
-            int pos = newItemEvent.getPosition();
-            //logger.info(id +": new item: "+item+" - data: "+dataID+", is local: "+tempData.containsKey(dataID));
-            if (tempData.containsKey(dataID)) {
-                LocalData<T> currData = tempData.get(dataID);
-                if (currData.setItem(pos, item, learner.getRowRef(item))) {
-                    long startTime = System.nanoTime();
-                    asyncLearn(dataID, currData);
-                    long endTime = System.nanoTime();
-                    //logger.info(id + ": instant learn " + dataID + ", data size " + tempData.size());
-                    //logger.info("TIME: " + (endTime-startTime)/1000000);
-                }
-            } else {
-                synchroStream.put(new RowResponse<T>(
-                        item, pos, learner.getRow(item), learner.getContextRow(item), Long.toString(dataID)));
-            }
-        } else if (event instanceof RowResponse) {
-            RowResponse response = (RowResponse) event;
-            Long dataID = Long.parseLong(response.getKey());
-            if (tempData.containsKey(dataID)) {
-                T item = (T) response.getItem();
-                int pos = response.getPosition();
-                DoubleMatrix row = response.getRow();
-                DoubleMatrix contextRow = response.getContextRow();
-                LocalData<T> currData = tempData.get(dataID);
-                if (currData.setExternalItem(pos, item, row, contextRow)) {
-                    asyncLearn(dataID, currData);
-                }
-            } else {
-                if (!waitingItems.containsKey(dataID)) {
-                    waitingItems.put(dataID, new ArrayList<RowResponse>());
-                }
-                waitingItems.get(dataID).add(response);
-                logger.debug(this.getClass().getSimpleName() + "-{}: the item row for \"" + response.getItem() +
-                        "\" has reached this learner before data " + dataID + " initialization.", id);
-            }
-        } else if (event instanceof RowUpdate) {
-            RowUpdate<T> update = (RowUpdate<T>) event;
-            T item = update.getItem();
-            if (!learner.contains(item)) {
-                logger.error(this.getClass().getSimpleName()+"-{}: wrong row update for item {}, this learner does " +
-                        "not contain it", id, item);
-                return false;
-            }
-            //logger.info(id +": update item: "+item);
-            if (update.getRow() != null) {
-//                if(item.toString().equals("and")) logger.info(update.getRow()+"");
-                learner.updateRow(item, update.getRow());
-            }
-            if (update.getContextRow() != null) {
-//                if(item.toString().equals("and")) logger.info(update.getContextRow()+" context");
-                learner.updateContextRow(item, update.getContextRow());
-            }
-//            if(item.toString().equals("and")) logger.info("ROW "+learner.getRow(item));
-            modelStream.put(new ModelUpdateEvent(item, learner.getRow(item), false));
-        }
+        modelStream.put(new ModelUpdateEvent(null, null, true));
+        lastEventSent = true;
         return true;
+      }
+    } else if (event instanceof DataIDEvent) {
+      if (!firstDataReceived) {
+        firstDataReceived = true;
+        logger.info(this.getClass().getSimpleName() + "-{}: starting learning, the local negative sampler " +
+            "contains {} items and {} item types", id, sampler.getItemCount(), sampler.size());
+        if (sampler.getItemCount() > 0) {
+          sampler.update();
+        }
+      }
+      DataIDEvent<T> dataIDEvent = (DataIDEvent) event;
+      long dataID = dataIDEvent.geDataID();
+      LocalData<T> localData = new LocalData<T>((T[]) new Object[dataIDEvent.getDataSize()]);
+      //logger.info(id + ": new data: "+dataID+", length: "+localData.data.length + ", data size:" + tempData.size());
+      tempData.put(dataID, localData);
+      if (waitingItems.containsKey(dataID)) {
+        for (RowResponse<T> response : waitingItems.get(dataID)) {
+          T item = (T) response.getItem();
+          int pos = response.getPosition();
+          DoubleMatrix row = response.getRow();
+          DoubleMatrix contextRow = response.getContextRow();
+          LocalData<T> currData = tempData.get(dataID);
+          if (currData.setExternalItem(pos, item, row, contextRow)) {
+            asyncLearn(dataID, currData);
+          }
+        }
+        waitingItems.remove(dataID);
+      }
+    } else if (event instanceof ItemInDataEvent) {
+      ItemInDataEvent<T> newItemEvent = (ItemInDataEvent<T>) event;
+      long dataID = newItemEvent.getDataID();
+      T item = newItemEvent.getItem();
+      int pos = newItemEvent.getPosition();
+      //logger.info(id +": new item: "+item+" - data: "+dataID+", is local: "+tempData.containsKey(dataID));
+      if (tempData.containsKey(dataID)) {
+        LocalData<T> currData = tempData.get(dataID);
+        if (currData.setItem(pos, item, learner.getRowRef(item))) {
+          long startTime = System.nanoTime();
+          asyncLearn(dataID, currData);
+          long endTime = System.nanoTime();
+          //logger.info(id + ": instant learn " + dataID + ", data size " + tempData.size());
+          //logger.info("TIME: " + (endTime-startTime)/1000000);
+        }
+      } else {
+        synchroStream.put(new RowResponse<T>(
+            item, pos, learner.getRow(item), learner.getContextRow(item), Long.toString(dataID)));
+      }
+    } else if (event instanceof RowResponse) {
+      RowResponse response = (RowResponse) event;
+      Long dataID = Long.parseLong(response.getKey());
+      if (tempData.containsKey(dataID)) {
+        T item = (T) response.getItem();
+        int pos = response.getPosition();
+        DoubleMatrix row = response.getRow();
+        DoubleMatrix contextRow = response.getContextRow();
+        LocalData<T> currData = tempData.get(dataID);
+        if (currData.setExternalItem(pos, item, row, contextRow)) {
+          asyncLearn(dataID, currData);
+        }
+      } else {
+        if (!waitingItems.containsKey(dataID)) {
+          waitingItems.put(dataID, new ArrayList<RowResponse>());
+        }
+        waitingItems.get(dataID).add(response);
+        logger.debug(this.getClass().getSimpleName() + "-{}: the item row for \"" + response.getItem() +
+            "\" has reached this learner before data " + dataID + " initialization.", id);
+      }
+    } else if (event instanceof RowUpdate) {
+      RowUpdate<T> update = (RowUpdate<T>) event;
+      T item = update.getItem();
+      if (!learner.contains(item)) {
+        logger.error(this.getClass().getSimpleName() + "-{}: wrong row update for item {}, this learner does " +
+            "not contain it", id, item);
+        return false;
+      }
+      //logger.info(id +": update item: "+item);
+      if (update.getRow() != null) {
+//                if(item.toString().equals("and")) logger.info(update.getRow()+"");
+        learner.updateRow(item, update.getRow());
+      }
+      if (update.getContextRow() != null) {
+//                if(item.toString().equals("and")) logger.info(update.getContextRow()+" context");
+        learner.updateContextRow(item, update.getContextRow());
+      }
+//            if(item.toString().equals("and")) logger.info("ROW "+learner.getRow(item));
+      modelStream.put(new ModelUpdateEvent(item, learner.getRow(item), false));
     }
+    return true;
+  }
 
-    private void pollEvents() {
-        while (!synchroEvents.isEmpty()) {
-            synchroStream.put(synchroEvents.poll());
-        }
-        while (!modelEvents.isEmpty()) {
-            modelStream.put(modelEvents.poll());
-        }
+  private void pollEvents() {
+    while (!synchroEvents.isEmpty()) {
+      synchroStream.put(synchroEvents.poll());
     }
+    while (!modelEvents.isEmpty()) {
+      modelStream.put(modelEvents.poll());
+    }
+  }
 
 //    private void learn(LocalData<T> currData) {
 //        try {
@@ -246,40 +245,40 @@ public class LearnerProcessor<T> implements Processor {
 //        }
 //    }
 
-    private void learn(long dataID, LocalData<T> currData) {
-        T[] data = currData.data;
-        learner.setExternalRows(dataID, currData.externalRows);
-        for (int pos = 0; pos < data.length; pos++) {
-            T contextItem = data[pos];
-            // Generate a random window for each item
-            int reduced_window = org.jblas.util.Random.nextInt(window); // `b` in the original word2vec code
-            // now go over all items from the (reduced) window, predicting each one in turn
-            int start = Math.max(0, pos - window + reduced_window);
-            int end = pos + window + 1 - reduced_window;
-            T[] data2 = Arrays.copyOfRange(data, start, end > data.length ? data.length : end);
-            // Fixed a context item, iterate through items which have it in their context
-            for (int pos2 = 0; pos2 < data2.length; pos2++) {
-                T item = data2[pos2];
-                // don't train on OOV items and on the `item` itself
-                if (item != null && pos != pos2 + start) {
-                    List<T> tempNegItems = ((NegativeSampler<T>) sampler).negItems();
-                    List<T> negItems = new ArrayList<>(tempNegItems.size());
-                    for (T negItem: tempNegItems) {
-                        //FIXME if the condition is not met, word pair is not learnt (the original word2vec does the same)
-                        if (!negItem.equals(contextItem)) {
-                            negItems.add(negItem);
-                        }
-//                        logger.info(item+" "+contextItem+" "+negItem+"");
-                    }
-                    if (negItems.isEmpty()) {
-                        continue;
-                    }
-                    learner.train(dataID, item, contextItem, negItems);
-                    incrIterations();
-                }
+  private void learn(long dataID, LocalData<T> currData) {
+    T[] data = currData.data;
+    learner.setExternalRows(dataID, currData.externalRows);
+    for (int pos = 0; pos < data.length; pos++) {
+      T contextItem = data[pos];
+      // Generate a random window for each item
+      int reduced_window = org.jblas.util.Random.nextInt(window); // `b` in the original word2vec code
+      // now go over all items from the (reduced) window, predicting each one in turn
+      int start = Math.max(0, pos - window + reduced_window);
+      int end = pos + window + 1 - reduced_window;
+      T[] data2 = Arrays.copyOfRange(data, start, end > data.length ? data.length : end);
+      // Fixed a context item, iterate through items which have it in their context
+      for (int pos2 = 0; pos2 < data2.length; pos2++) {
+        T item = data2[pos2];
+        // don't train on OOV items and on the `item` itself
+        if (item != null && pos != pos2 + start) {
+          List<T> tempNegItems = ((NegativeSampler<T>) sampler).negItems();
+          List<T> negItems = new ArrayList<>(tempNegItems.size());
+          for (T negItem : tempNegItems) {
+            //FIXME if the condition is not met, word pair is not learnt (the original word2vec does the same)
+            if (!negItem.equals(contextItem)) {
+              negItems.add(negItem);
             }
+//                        logger.info(item+" "+contextItem+" "+negItem+"");
+          }
+          if (negItems.isEmpty()) {
+            continue;
+          }
+          learner.train(dataID, item, contextItem, negItems);
+          incrIterations();
         }
-        Map<T, Map.Entry<DoubleMatrix, DoubleMatrix>> gradients = learner.getGradients(dataID);
+      }
+    }
+    Map<T, Map.Entry<DoubleMatrix, DoubleMatrix>> gradients = learner.getGradients(dataID);
 //        for (int pos = 0; pos < data.length; pos++) {
 //            logger.info(currData.data+" "+currData.dataCount+" "+currData.missingData);
 //        }
@@ -287,95 +286,95 @@ public class LearnerProcessor<T> implements Processor {
 //                for (T key: gradientUpdates.keySet()) {
 //                    logger.info(key+" "+ gradientUpdates.get(key).getKey()+" "+gradientUpdates.get(key).getValue());
 //                }
-        for (T item: gradients.keySet()) {
-            DoubleMatrix rowUpdate = gradients.get(item).getKey();
-            DoubleMatrix contextUpdate = gradients.get(item).getValue();
-            if ((rowUpdate != null || contextUpdate != null) && (!rowUpdate.isEmpty() || !contextUpdate.isEmpty())) {
-                synchroEvents.add(new RowUpdate(item, rowUpdate, contextUpdate, item.toString()));
-            }
-        }
-        learner.clean(dataID);
-        for (T item: currData.rowHashes.keySet()) {
-            if (currData.rowChanged(item, learner.getRowRef(item))) {
-                modelEvents.add(new ModelUpdateEvent(item, learner.getRow(item), false));
-            }
-        }
+    for (T item : gradients.keySet()) {
+      DoubleMatrix rowUpdate = gradients.get(item).getKey();
+      DoubleMatrix contextUpdate = gradients.get(item).getValue();
+      if ((rowUpdate != null || contextUpdate != null) && (!rowUpdate.isEmpty() || !contextUpdate.isEmpty())) {
+        synchroEvents.add(new RowUpdate(item, rowUpdate, contextUpdate, item.toString()));
+      }
     }
+    learner.clean(dataID);
+    for (T item : currData.rowHashes.keySet()) {
+      if (currData.rowChanged(item, learner.getRowRef(item))) {
+        modelEvents.add(new ModelUpdateEvent(item, learner.getRow(item), false));
+      }
+    }
+  }
 
-    private synchronized void incrIterations() {
-        iterations++;
-        if (iterations % 500000 == 0) {
-            logger.info(String.format("LearnerProcessor-%d: at %d iterations", id, iterations));
+  private synchronized void incrIterations() {
+    iterations++;
+    if (iterations % 500000 == 0) {
+      logger.info(String.format("LearnerProcessor-%d: at %d iterations", id, iterations));
 //            logger.info(id + " data size " + tempData.size());
-        }
     }
+  }
 
-    private void asyncLearn(final long dataID, final LocalData<T> currData){
-        Runnable task = new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    //logger.info("learning " + dataID);
-                    learn(dataID, currData);
-                    //logger.info("finished " + dataID);
-                    //Thread.sleep(1);
-                    tempData.remove(dataID);
-                } catch (Exception e) {
-                    logger.error("LearnerSubThread-{}: asynchronous learning interruption", id);
-                    e.printStackTrace();
-                }
-            }
-        };
+  private void asyncLearn(final long dataID, final LocalData<T> currData) {
+    Runnable task = new Runnable() {
+      @Override
+      public void run() {
+        try {
+          //logger.info("learning " + dataID);
+          learn(dataID, currData);
+          //logger.info("finished " + dataID);
+          //Thread.sleep(1);
+          tempData.remove(dataID);
+        } catch (Exception e) {
+          logger.error("LearnerSubThread-{}: asynchronous learning interruption", id);
+          e.printStackTrace();
+        }
+      }
+    };
 //        new Thread(task, "LearnerSubThread-"+id).start();
-        executor.execute(task);
-    }
+    executor.execute(task);
+  }
 
-    @Override
-    public Processor newProcessor(Processor processor) {
-        LearnerProcessor p = (LearnerProcessor) processor;
-        LearnerProcessor l = new LearnerProcessor(p.window, p.learner.copy(), p.sampler.copy(), p.samplerCount);
-        l.setSeed(p.seed);
-        l.modelStream = p.modelStream;
-        l.synchroStream = p.synchroStream;
-        l.iterations = p.iterations;
-        l.lastEventCount = p.lastEventCount;
-        l.firstDataReceived = p.firstDataReceived;
-        l.lastEventSent = p.lastEventSent;
-        l.tempData = new ConcurrentHashMap();
-        for (Object key: p.tempData.keySet()) {
-            l.tempData.put(key, ((LocalData<T>) p.tempData.get(key)).copy());
-        }
-        l.waitingItems = new HashMap();
-        for (Object key: p.waitingItems.keySet()) {
-            l.waitingItems.put(key, new ArrayList<RowResponse>((List) p.waitingItems.get(key)));
-        }
-        l.synchroEvents = new ConcurrentLinkedQueue();
-        Iterator iter = p.synchroEvents.iterator();
-        while (iter.hasNext()) {
-            l.synchroEvents.add(iter.next());
-        }
-        l.modelEvents = new ConcurrentLinkedQueue();
-        iter = p.modelEvents.iterator();
-        while (iter.hasNext()) {
-            l.modelEvents.add(iter.next());
-        }
-        //FIXME what about this??
-        l.executor = p.executor;
-        return l;
+  @Override
+  public Processor newProcessor(Processor processor) {
+    LearnerProcessor p = (LearnerProcessor) processor;
+    LearnerProcessor l = new LearnerProcessor(p.window, p.learner.copy(), p.sampler.copy(), p.samplerCount);
+    l.setSeed(p.seed);
+    l.modelStream = p.modelStream;
+    l.synchroStream = p.synchroStream;
+    l.iterations = p.iterations;
+    l.lastEventCount = p.lastEventCount;
+    l.firstDataReceived = p.firstDataReceived;
+    l.lastEventSent = p.lastEventSent;
+    l.tempData = new ConcurrentHashMap();
+    for (Object key : p.tempData.keySet()) {
+      l.tempData.put(key, ((LocalData<T>) p.tempData.get(key)).copy());
     }
+    l.waitingItems = new HashMap();
+    for (Object key : p.waitingItems.keySet()) {
+      l.waitingItems.put(key, new ArrayList<RowResponse>((List) p.waitingItems.get(key)));
+    }
+    l.synchroEvents = new ConcurrentLinkedQueue();
+    Iterator iter = p.synchroEvents.iterator();
+    while (iter.hasNext()) {
+      l.synchroEvents.add(iter.next());
+    }
+    l.modelEvents = new ConcurrentLinkedQueue();
+    iter = p.modelEvents.iterator();
+    while (iter.hasNext()) {
+      l.modelEvents.add(iter.next());
+    }
+    //FIXME what about this??
+    l.executor = p.executor;
+    return l;
+  }
 
-    public void setModelStream(Stream modelStream) {
-        this.modelStream = modelStream;
-    }
+  public void setModelStream(Stream modelStream) {
+    this.modelStream = modelStream;
+  }
 
-    public void setSynchroStream(Stream synchroStream) {
-        this.synchroStream = synchroStream;
-    }
+  public void setSynchroStream(Stream synchroStream) {
+    this.synchroStream = synchroStream;
+  }
 
-    public void setSeed(long seed) {
-        this.seed = seed;
-        Random.seed(seed);
-        this.learner.setSeed(seed);
-        this.sampler.setSeed(seed);
-    }
+  public void setSeed(long seed) {
+    this.seed = seed;
+    Random.seed(seed);
+    this.learner.setSeed(seed);
+    this.sampler.setSeed(seed);
+  }
 }

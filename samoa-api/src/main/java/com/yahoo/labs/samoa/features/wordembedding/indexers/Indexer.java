@@ -32,33 +32,37 @@ import java.util.Set;
  */
 public interface Indexer<T> extends Configurable, Serializable {
 
-    /**
-     * Initialize the configuration with the CLI options.
-     * If configuration options have changed everything is re-initialized.
-     * @return True if new configuration options are set.
-     */
-    boolean initConfiguration();
+  /**
+   * Initialize the configuration with the CLI options.
+   * If configuration options have changed everything is re-initialized.
+   *
+   * @return True if new configuration options are set.
+   */
+  boolean initConfiguration();
 
-    /**
-     * Add an item to the index and return its count.
-     * The returned item can be filtered according to some Indexer rule (e.g., no items less frequent than...)
-     * @param item
-     * @return The new item count.
-     */
-    long add(T item);
+  /**
+   * Add an item to the index and return its count.
+   * The returned item can be filtered according to some Indexer rule (e.g., no items less frequent than...)
+   *
+   * @param item
+   * @return The new item count.
+   */
+  long add(T item);
 
-    /**
-     * The items eventually removed after any operation on the index.
-     * Each call of this method clear the Indexer internal list of the items to be removed.
-     * @return A map of items removed from the index with their counts
-     */
-    Map<T, Long> getRemoved();
+  /**
+   * The items eventually removed after any operation on the index.
+   * Each call of this method clear the Indexer internal list of the items to be removed.
+   *
+   * @return A map of items removed from the index with their counts
+   */
+  Map<T, Long> getRemoved();
 
-    /**
-     * Number of unique items.
-     * @return
-     */
-    long size();
+  /**
+   * Number of unique items.
+   *
+   * @return
+   */
+  long size();
 
 //    /**
 //     * Number of data elements (sentences, documents,...) processed.
@@ -66,12 +70,13 @@ public interface Indexer<T> extends Configurable, Serializable {
 //     */
 //    long dataCount();
 
-    /**
-     * Sum of all item counts (occurrences count of items in processed data).
-     * @return
-     */
-    long totalItemCount();
+  /**
+   * Sum of all item counts (occurrences count of items in processed data).
+   *
+   * @return
+   */
+  long totalItemCount();
 
-    Indexer<T> copy();
+  Indexer<T> copy();
 
 }

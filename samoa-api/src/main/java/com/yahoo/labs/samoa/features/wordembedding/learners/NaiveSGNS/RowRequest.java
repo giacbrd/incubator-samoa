@@ -29,49 +29,49 @@ import java.util.List;
  */
 public class RowRequest<T> implements ContentEvent {
 
-    private static final long serialVersionUID = 4705812110929345641L;
-    private String sourceKey;
-    private T sourceItem;
-    private T requestedItem;
-    private String key;
-    private boolean isLastEvent = false;
+  private static final long serialVersionUID = 4705812110929345641L;
+  private String sourceKey;
+  private T sourceItem;
+  private T requestedItem;
+  private String key;
+  private boolean isLastEvent = false;
 
-    public RowRequest() {
-    }
+  public RowRequest() {
+  }
 
-    public RowRequest(String sourceKey, T sourceItem, T requestedItem) {
-        this.sourceKey = sourceKey;
-        this.sourceItem = sourceItem;
-        this.requestedItem = requestedItem;
-        this.key = requestedItem.toString();
-    }
+  public RowRequest(String sourceKey, T sourceItem, T requestedItem) {
+    this.sourceKey = sourceKey;
+    this.sourceItem = sourceItem;
+    this.requestedItem = requestedItem;
+    this.key = requestedItem.toString();
+  }
 
-    @Override
-    public String getKey() {
-        return key;
-    }
+  @Override
+  public String getKey() {
+    return key;
+  }
 
-    @Override
-    public void setKey(String key) {
+  @Override
+  public void setKey(String key) {
 
-        this.key = key;
-    }
+    this.key = key;
+  }
 
-    @Override
-    public boolean isLastEvent() {
-        return isLastEvent;
-    }
+  @Override
+  public boolean isLastEvent() {
+    return isLastEvent;
+  }
 
-    public T getSourceItem() {
-        return sourceItem;
-    }
+  public T getSourceItem() {
+    return sourceItem;
+  }
 
-    public T getRequestedItem() {
-        return requestedItem;
-    }
+  public T getRequestedItem() {
+    return requestedItem;
+  }
 
-    public String getSourceKey() {
-        return sourceKey;
-    }
+  public String getSourceKey() {
+    return sourceKey;
+  }
 
 }

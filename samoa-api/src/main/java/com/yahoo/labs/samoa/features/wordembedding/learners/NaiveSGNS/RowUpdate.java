@@ -28,43 +28,43 @@ import org.jblas.DoubleMatrix;
  */
 public class RowUpdate<T> implements ContentEvent {
 
-    private static final long serialVersionUID = -2160261482784522833L;
-    private T item;
-    private DoubleMatrix gradient;
-    private String key;
-    private boolean isLastEvent = false;
+  private static final long serialVersionUID = -2160261482784522833L;
+  private T item;
+  private DoubleMatrix gradient;
+  private String key;
+  private boolean isLastEvent = false;
 
-    public RowUpdate() {
-    }
+  public RowUpdate() {
+  }
 
-    public RowUpdate(T item, DoubleMatrix gradient) {
-        this.item = item;
-        this.gradient = gradient;
-        this.key = item.toString();
-    }
+  public RowUpdate(T item, DoubleMatrix gradient) {
+    this.item = item;
+    this.gradient = gradient;
+    this.key = item.toString();
+  }
 
-    @Override
-    public String getKey() {
-        return key;
-    }
+  @Override
+  public String getKey() {
+    return key;
+  }
 
-    @Override
-    public void setKey(String key) {
+  @Override
+  public void setKey(String key) {
 
-        this.key = key;
-    }
+    this.key = key;
+  }
 
-    @Override
-    public boolean isLastEvent() {
-        return isLastEvent;
-    }
+  @Override
+  public boolean isLastEvent() {
+    return isLastEvent;
+  }
 
-    public T getItem() {
-        return item;
-    }
+  public T getItem() {
+    return item;
+  }
 
-    public DoubleMatrix getGradient() {
-        return gradient;
-    }
+  public DoubleMatrix getGradient() {
+    return gradient;
+  }
 
 }

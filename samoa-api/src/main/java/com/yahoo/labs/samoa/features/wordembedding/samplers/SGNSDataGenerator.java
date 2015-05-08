@@ -34,36 +34,37 @@ import java.util.UUID;
  */
 public class SGNSDataGenerator<T> extends SamplerProcessor<T> {
 
-    private static final Logger logger = LoggerFactory.getLogger(SGNSDataGenerator.class);
-    private static final long serialVersionUID = -5611465946745393746L;
+  private static final Logger logger = LoggerFactory.getLogger(SGNSDataGenerator.class);
+  private static final long serialVersionUID = -5611465946745393746L;
 
-    public SGNSDataGenerator(Sampler sampler) {
-        super(sampler);
-    }
+  public SGNSDataGenerator(Sampler sampler) {
+    super(sampler);
+  }
 
-    /**
-     * Send the training samples from data, which is split in a data ID message and several item messages.
-     * @param data
-     */
-    protected void generateTraining(List<T> data) {
-        long dataID = data.toString().hashCode();
-        learnerStream.put(new DataIDEvent(dataID, data.size(), false, Long.toString(dataID)));
-        for (int pos = 0; pos < data.size(); pos++) {
-            T item = data.get(pos);
-            learnerStream.put(new ItemInDataEvent(item, dataID, pos, false, item.toString()));
-        }
+  /**
+   * Send the training samples from data, which is split in a data ID message and several item messages.
+   *
+   * @param data
+   */
+  protected void generateTraining(List<T> data) {
+    long dataID = data.toString().hashCode();
+    learnerStream.put(new DataIDEvent(dataID, data.size(), false, Long.toString(dataID)));
+    for (int pos = 0; pos < data.size(); pos++) {
+      T item = data.get(pos);
+      learnerStream.put(new ItemInDataEvent(item, dataID, pos, false, item.toString()));
     }
+  }
 
-    @Override
-    public Processor newProcessor(Processor processor) {
-        SGNSDataGenerator p = (SGNSDataGenerator) processor;
-        SGNSDataGenerator w = new SGNSDataGenerator(p.sampler.copy());
-        w.learnerStream = p.learnerStream;
-        w.learnerAllStream = p.learnerAllStream;
-        w.modelStream = p.modelStream;
-        w.dataCount = p.dataCount;
-        w.firstDataReceived = p.firstDataReceived;
-        w.setSeed(p.seed);
-        return w;
-    }
+  @Override
+  public Processor newProcessor(Processor processor) {
+    SGNSDataGenerator p = (SGNSDataGenerator) processor;
+    SGNSDataGenerator w = new SGNSDataGenerator(p.sampler.copy());
+    w.learnerStream = p.learnerStream;
+    w.learnerAllStream = p.learnerAllStream;
+    w.modelStream = p.modelStream;
+    w.dataCount = p.dataCount;
+    w.firstDataReceived = p.firstDataReceived;
+    w.setSeed(p.seed);
+    return w;
+  }
 }
